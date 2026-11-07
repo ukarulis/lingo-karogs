@@ -44,7 +44,15 @@ export function Dialog({
       }}
       onWaAfterHide={() => setMounted(false)}
       className={cn("dark:bg-stone-900", wide ? "sm:max-w-2xl" : "sm:max-w-md")}
-      style={{ "--width": wide ? "42rem" : "28rem" } as CSSProperties}
+      style={
+        {
+          "--width": wide ? "42rem" : "28rem",
+          // wa-dialog's :host styles redefine --spacing for its own layout;
+          // restore the Tailwind spacing token so slotted content keeps
+          // normal proportions.
+          "--spacing": "0.25rem",
+        } as CSSProperties
+      }
     >
       <button
         slot="header-actions"

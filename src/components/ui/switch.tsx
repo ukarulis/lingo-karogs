@@ -1,7 +1,5 @@
 "use client";
 
-import WaSwitch from "@awesome.me/webawesome/dist/react/switch/index.js";
-
 export function Switch({
   checked,
   onCheckedChange,
@@ -14,15 +12,27 @@ export function Switch({
   id?: string;
 }) {
   return (
-    <WaSwitch
+    <button
       id={id}
-      checked={checked}
-      title={label}
+      type="button"
+      role="switch"
+      aria-checked={checked}
       aria-label={label}
-      onChange={(e) =>
-        onCheckedChange(Boolean((e.target as { checked?: boolean }).checked))
+      onClick={() => onCheckedChange(!checked)}
+      className={
+        "relative h-7 w-12 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 " +
+        (checked
+          ? "bg-indigo-600 dark:bg-indigo-500"
+          : "bg-stone-300 dark:bg-stone-600")
       }
-      className="shrink-0"
-    />
+    >
+      <span
+        aria-hidden
+        className={
+          "absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform " +
+          (checked ? "translate-x-6" : "translate-x-1")
+        }
+      />
+    </button>
   );
 }
