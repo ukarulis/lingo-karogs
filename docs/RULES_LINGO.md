@@ -129,3 +129,18 @@ pašā raundā.
 | Pareizo burtu pārnešana nākamajās rindās | Vēsturiska uzvedība (konfigurējama) |
 | Dzīvības, palīdzības, punktu formula | Vēsturiskā zāle, koriģēts līdzsvars |
 | Dublikātu bloķēšana bez mēģinājuma zaudēšanas | Mūsu drošības precizējums |
+
+## Tiešsaistes režīmi (C fāze)
+
+- **Ātrais duelis**: 2 spēlētāji, 1 vārds, 60 s, bez pagarinājumiem.
+- **Piecu vārdu cīņa**: 2 spēlētāji, 5 vārdi, 90 s kārtai, 3 pagarinājumi
+  spēlei (+15 s katrs, maksimums 1 kārtā), punktu summēšana.
+- Abiem spēlētājiem viena un tā pati vārdu secība, noteikumi, sākuma
+  laikspiedols un resursi; serveris izvēlas un glabā vārdus, validē
+  minējumus un termiņus, rēķina punktus.
+- Kārtas punkti: `1000 + 150 × (5 − mēģinājumi) + max(0, bāzesLaiks −
+  pagājušaisLaiks)`; pagarinājums punktu bonusa bāzi nemaina.
+- Uzvarētājs: punkti → atminēto vārdu skaits → kopējie minējumi
+  atrisinātajās kārtās → kopējais laiks → neizšķirts.
+- Pretinieka minējumi un mērķvārds kļūst redzami tikai pēc kārtas
+  izšķiršanas; atvienošanās taimeri neaptur.

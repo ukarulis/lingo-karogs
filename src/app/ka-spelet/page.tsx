@@ -80,6 +80,15 @@ export default function KaSpeletPage() {
             5. — 200 punktu; neveiksme — 0. Palīdzība atklāj vienu vēl nezināmu
             burtu. Šajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam.
           </p>
+          <p className="mt-3 font-semibold">Spēlēt ar draugu</p>
+          <p>
+            Izveido privātu istabu un uzaicini draugu ar saiti. Ātrajā duelī
+            sacenties vienā vārdā (60 s); Piecu vārdu cīņā spēlē piecus
+            vārdus (90 s katrai kārtai) ar trīs pagarinājumiem (+15 s) un
+            kopējo punktu skaitīšanu. Serveris validē minējumus, laiku un
+            rezultātus — pretinieka minējumi un atbilde redzami tikai pēc
+            kārtas beigām.
+          </p>
         </Section>
 
         <Section title="Karogs — armijas un izvietošana">
