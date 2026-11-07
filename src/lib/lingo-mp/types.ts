@@ -151,6 +151,8 @@ export interface LingoMpView {
   }>;
   countdownEndsAt: string | null;
   currentRound: RoundView | null;
+  /** Resolved rounds with revealed words and scores (public after resolution). */
+  resolvedRounds: RoundView[];
   roundIndex: number;
   totalRounds: number;
   result: MatchResult | null;

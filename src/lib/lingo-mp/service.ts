@@ -266,6 +266,11 @@ export class LingoMultiplayerService {
     count: number,
     avoid: ReadonlySet<string>,
   ): string[] {
+    if (process.env.NEXT_PUBLIC_E2E) {
+      // Deterministic target selection for automated browser tests.
+      const fresh = targets.filter((t) => !avoid.has(t));
+      return (fresh.length >= count ? fresh : targets).slice(0, count);
+    }
     const available = targets.filter((t) => !avoid.has(t));
     const pool = available.length >= count ? available : targets;
     const chosen: string[] = [];

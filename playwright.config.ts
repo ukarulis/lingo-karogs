@@ -22,6 +22,7 @@ export default defineConfig({
     env: {
       MULTIPLAYER_STORE: "sqlite",
       SQLITE_DB_PATH: ".data/e2e.db",
+      LINGO_MP_STORE: "sqlite",
       NEXT_PUBLIC_E2E: "1",
     },
   },

@@ -10,9 +10,10 @@ import { storageGet, storageSet } from "@/lib/store/storage";
 import { DailyMode } from "./DailyMode";
 import { EndlessMode } from "./EndlessMode";
 import { ArcadeMode } from "./ArcadeMode";
+import { OnlineMode } from "./OnlineMode";
 import { LingoOnboarding } from "./Onboarding";
 
-type LingoMode = "daily" | "endless" | "arcade";
+type LingoMode = "daily" | "endless" | "arcade" | "online";
 
 function ColorLegend({
   palette,
@@ -83,19 +84,23 @@ export function LingoApp() {
             { value: "daily", label: "Dienas vārds" },
             { value: "endless", label: "Neierobežotā" },
             { value: "arcade", label: "Klasiskais Lingo" },
+            { value: "online", label: "Spēlēt ar draugu" },
           ]}
         />
       </div>
       {mode === "daily" ? <DailyMode palette={palette} /> : null}
       {mode === "endless" ? <EndlessMode palette={palette} /> : null}
       {mode === "arcade" ? <ArcadeMode palette={palette} /> : null}
+      {mode === "online" ? <OnlineMode palette={palette} /> : null}
       <div className="mx-auto mt-5 max-w-md text-center text-xs text-stone-500 dark:text-stone-400">
-        <ColorLegend palette={palette} />
+        {mode !== "online" ? <ColorLegend palette={palette} /> : null}
       </div>
       <p className="mx-auto mt-5 max-w-md text-center text-xs text-stone-500 dark:text-stone-400">
-        {mode === "arcade"
-          ? "Klasiskajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam."
-          : "Brīvais minējums: der jebkura 5 burtu kombinācija — tai nav jābūt vārdnīcā."}
+        {mode === "online"
+          ? "Tiešsaistes spēlēs ir spēkā tie paši noteikumi: brīvie minējumi, pārnešana un servera kontrolēts laiks."
+          : mode === "arcade"
+            ? "Klasiskajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam."
+            : "Brīvais minējums: der jebkura 5 burtu kombinācija — tai nav jābūt vārdnīcā."}
       </p>
       <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-stone-400 dark:text-stone-500">
         <Palette className="size-3.5" aria-hidden />

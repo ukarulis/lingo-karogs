@@ -70,6 +70,17 @@ export async function apiCreateLingoMatch(
   return json;
 }
 
+export async function apiLingoMpStatus(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/lingo-mp/status", { cache: "no-store" });
+    if (!res.ok) return false;
+    const json = (await res.json()) as { available: boolean };
+    return json.available;
+  } catch {
+    return false;
+  }
+}
+
 export async function apiJoinLingoMatch(
   code: string,
   nickname: string,
@@ -84,6 +95,27 @@ export async function apiJoinLingoMatch(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+  });
+  const json = (await res.json()) as JoinMatchResponse & { error?: string };
+  if (!res.ok) throw new Error(json.error ?? "Neizdevās pievienoties");
+  return json;
+}
+
+/** Rejoin (e.g. a rematch room) with an existing player token. */
+export async function apiJoinLingoMatchWithToken(
+  code: string,
+  nickname: string,
+  playerToken: string,
+): Promise<JoinMatchResponse> {
+  const res = await fetch("/api/lingo-mp/join", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      code,
+      nickname,
+      guestHash: await guestHashForPlayer(),
+      playerToken,
+    }),
   });
   const json = (await res.json()) as JoinMatchResponse & { error?: string };
   if (!res.ok) throw new Error(json.error ?? "Neizdevās pievienoties");

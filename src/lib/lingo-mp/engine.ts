@@ -831,6 +831,41 @@ export function buildView(
       }
     : null;
 
+  const resolvedRounds = agg.rounds
+    .filter((r) => r.resolvedAt !== null)
+    .map((r) => ({
+      index: r.roundIndex,
+      status: "resolved" as const,
+      wordLength: config.length,
+      firstLetter: config.revealFirstLetter ? r.word[0] : null,
+      startedAt: r.startedAt,
+      nextStartAt: r.nextStartAt,
+      yourDeadline: null,
+      yourGuesses: agg.submissions
+        .filter((s) => s.roundId === r.id && s.player === slot)
+        .sort((a, b) => a.seq - b.seq)
+        .map((s) => ({
+          seq: s.seq,
+          word: s.word,
+          result: JSON.parse(s.resultJson) as CellStatus[],
+          acceptedAt: s.createdAt,
+        })),
+      yourAttemptsLeft: 0,
+      yourOutcome:
+        slot === "host" ? r.hostOutcome : r.guestOutcome,
+      yourExtensionsUsedThisRound:
+        slot === "host" ? r.hostExtensionsUsed : r.guestExtensionsUsed,
+      word: r.word,
+      players: ["host", "guest"].map((s) => ({
+        slot: s as LingoMpSlot,
+        nickname: s === "host" ? match.hostNickname : match.guestNickname,
+        outcome: s === "host" ? r.hostOutcome : r.guestOutcome,
+        attemptsUsed: playerAttempts(r, agg.submissions, s as LingoMpSlot),
+        score: s === "host" ? r.hostScore : r.guestScore,
+        solvedAt: s === "host" ? r.hostSolvedAt : r.guestSolvedAt,
+      })),
+    }));
+
   return {
     matchId: match.id,
     code: match.code,
@@ -852,6 +887,7 @@ export function buildView(
     players: [playerView("host"), playerView("guest")],
     countdownEndsAt: match.countdownEndsAt,
     currentRound: roundView,
+    resolvedRounds,
     roundIndex: match.currentRoundIndex,
     totalRounds: config.words,
     result,
