@@ -35,10 +35,15 @@ try {
       );
     }
     const { rows: subs } = await client.query(
-      "SELECT player, seq, word FROM lingo_round_submissions WHERE match_id = $1 ORDER BY player, seq",
+      "SELECT round_id, player, count(*) AS n, max(seq) AS max_seq FROM lingo_round_submissions WHERE match_id = $1 GROUP BY round_id, player ORDER BY round_id, player",
       [m.id],
     );
-    console.log("  submissions:", subs);
+    console.log("  submissions:", subs.map((s) => `${s.round_id.split(":")[1] ?? "?"}/${s.player}:${s.n}`).join(" "));
+    const { rows: ev } = await client.query(
+      "SELECT type, player, count(*) AS n FROM lingo_match_events WHERE match_id = $1 GROUP BY type, player ORDER BY type",
+      [m.id],
+    );
+    console.log("  events:", ev);
   }
 } finally {
   await client.end();

@@ -53,6 +53,8 @@ export async function apiCreateLingoMatch(
   length: number,
   nickname: string,
 ): Promise<CreateMatchResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   const body: CreateMatchRequest = {
     format,
     length,
@@ -64,7 +66,9 @@ export async function apiCreateLingoMatch(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   const json = (await res.json()) as CreateMatchResponse & { error?: string };
   if (!res.ok) throw new Error(json.error ?? "Neizdevās izveidot istabu");
   return json;
@@ -85,6 +89,8 @@ export async function apiJoinLingoMatch(
   code: string,
   nickname: string,
 ): Promise<JoinMatchResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   const body = {
     code,
     nickname,
@@ -95,7 +101,9 @@ export async function apiJoinLingoMatch(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   const json = (await res.json()) as JoinMatchResponse & { error?: string };
   if (!res.ok) throw new Error(json.error ?? "Neizdevās pievienoties");
   return json;
@@ -107,6 +115,8 @@ export async function apiJoinLingoMatchWithToken(
   nickname: string,
   playerToken: string,
 ): Promise<JoinMatchResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
   const res = await fetch("/api/lingo-mp/join", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -116,7 +126,9 @@ export async function apiJoinLingoMatchWithToken(
       guestHash: await guestHashForPlayer(),
       playerToken,
     }),
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   const json = (await res.json()) as JoinMatchResponse & { error?: string };
   if (!res.ok) throw new Error(json.error ?? "Neizdevās pievienoties");
   return json;
@@ -126,10 +138,14 @@ export async function apiLingoMpView(
   matchId: string,
   playerToken: string,
 ): Promise<LingoMpView> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   const res = await fetch(`/api/lingo-mp/${matchId}`, {
     cache: "no-store",
     headers: { "x-player-token": playerToken },
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(json.error ?? "Neizdevās ielādēt spēli");
@@ -142,10 +158,14 @@ export async function apiLingoMpAction(
   playerToken: string,
   action: LingoMpAction,
 ): Promise<LingoMpActionResponse> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   const res = await fetch(`/api/lingo-mp/${matchId}/action`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ token: playerToken, action }),
+    signal: controller.signal,
   });
+  clearTimeout(timer);
   return (await res.json()) as LingoMpActionResponse;
 }
