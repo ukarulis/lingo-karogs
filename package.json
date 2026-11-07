@@ -1,0 +1,47 @@
+{
+  "name": "lingo-karogs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "e2e:server": "npm run build && npm run start -- --port 3100",
+    "gen:dict": "node scripts/generate-dictionary.mjs",
+    "gen:icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
+    "better-sqlite3": "^13.0.3",
+    "lucide-react": "^0.545.0",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "adm-zip": "^0.6.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.3",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.1.17",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  }
+}
