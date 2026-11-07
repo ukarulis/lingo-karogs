@@ -105,15 +105,10 @@ Pret īsto ražošanu (divi neatkarīgi pārlūka konteksti):
   vienāda publiskā mājiena vērtība → minējumi → vienāds gala rezultāts
   abos klientos; atbildes noplūdes nav (vārds redzams tikai pēc
   izšķiršanas). **PASS** (atkārtoti).
-- **Piecu vārdu cīņa**: izveide, pievienošanās, gatavība, pagarinājums
-  (+15 s, 3→2, viena kārtā) **PASS**; kārtas izšķiras un punkti strādā,
-  bet automatizētajā pārbaudē starp kārtām novērojama klienta puses
-  sacensība: pēc kārtas izšķiršanas nākamās kārtas ievade dažkārt netiek
-  iesniegta (serveris ieraksta 0 minējumus nākamajā kārtā). Servera puse
-  ir korekta (DB pierādījumi, integrācijas testi); atklāts **zināms
-  ierobežojums** — prasa klienta ievades kontroliera pārslēgšanas
-  pārstrādi. Pilnā 5 kārtu pabeigšana nav sasniegta automātiskajā harnesā,
-  un tas netiek uzskatīts par izpildītu.
+- **Piecu vārdu cīņa** (atrisināts V2.2.1): pilna piecu kārtu spēle abos
+  neatkarīgajos klientos, pagarinājums (+15 s, 3→2, viena kārtā), vienādi
+  rezultāti un revanšs — **PASS** pēc raunda-identitātes labojuma; sk.
+  `docs/LINGO_V2_2_1_STABILITY.md`.
 - **Atkārtota pieslēgšanās / drošība / veselība**: vietas un minējumu
   vēstures atjaunošana pēc pārlādēšanas **PASS**; viltots žetons → 403
   **PASS**; publiskā veselība `available:true` **PASS**; operatora
