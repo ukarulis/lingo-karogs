@@ -29,6 +29,15 @@ test("karogs board fits a mobile viewport", async ({ page }) => {
   await assertNoHorizontalOverflow(page);
 });
 
+test("seven-letter lingo board fits a 320px viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/lingo?endlesslen=7");
+  await skipOnboarding(page);
+  await page.getByRole("radio", { name: "Neierobežotā" }).click();
+  await expect(page.getByRole("group", { name: "Spēles laukums" })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+});
+
 test("tablet and large desktop layouts render", async ({ page }) => {
   for (const viewport of [
     { width: 768, height: 1024 },

@@ -119,6 +119,9 @@ export function LingoOnboarding({
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
+  const dark = useDark();
+  const [settings] = useSettings();
+  const palette = paletteFor(settings.palette, dark, settings.highContrast);
   return (
     <Dialog open={open} onClose={onClose} title="Kā spēlēt Lingo?" wide>
       <div className="mb-4 flex items-center justify-center gap-2" aria-hidden>
@@ -152,11 +155,27 @@ export function LingoOnboarding({
             Minējums “KRAVA” vārdam “KURPE”:
           </p>
           <ExampleWord word={LEGEND[0].word} target={LEGEND[0].target} />
-          <ul className="mt-4 space-y-1.5 text-sm text-stone-600 dark:text-stone-300">
-            <li>🟩 — burts ir pareizajā vietā (K)</li>
-            <li>🟨 — burts ir vārdā, bet citā vietā (R)</li>
-            <li>⬛ — burta vārdā nav (A, V)</li>
-          </ul>
+          <div className="mt-4 space-y-1.5 text-sm text-stone-600 dark:text-stone-300">
+            {(
+              [
+                ["correct", "burts ir pareizajā vietā (K)"],
+                ["present", "burts ir vārdā, bet citā vietā (R)"],
+                ["absent", "burta vārdā nav (A, V)"],
+              ] as const
+            ).map(([status, text]) => {
+              const style = statusStyle(status, palette);
+              return (
+                <div key={status} className="flex items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="size-4 shrink-0 rounded-sm border border-black/10"
+                    style={{ backgroundColor: style.backgroundColor }}
+                  />
+                  <span>{text}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <Step3Interactive onDone={onClose} />

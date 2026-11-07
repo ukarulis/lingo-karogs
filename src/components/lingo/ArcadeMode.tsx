@@ -19,6 +19,7 @@ import {
   startArcade,
 } from "@/lib/lingo/engine";
 import { guessSet, pickTarget } from "@/lib/lingo/words";
+import { latvianPack } from "@/lib/lingo/pack/latvian";
 import { paletteFor } from "@/lib/lingo/colors";
 import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
@@ -141,7 +142,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
 
   const rows: BoardRow[] = useMemo(() => {
     if (!round) return [];
-    return Array.from({ length: 5 }, (_, r) => {
+    return Array.from({ length: round.maxAttempts }, (_, r) => {
       if (r < round.guesses.length) {
         const word = round.guesses[r];
         return {
@@ -157,7 +158,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
         return {
           state: "current" as const,
           shake: shakeTick > 0,
-          cells: Array.from({ length: 5 }, (_, c) => {
+          cells: Array.from({ length: round.length }, (_, c) => {
             if (fixed[c]) {
               return { letter: fixed[c], status: "empty" as const, state: "hint" as const };
             }
@@ -169,7 +170,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
           }),
         };
       }
-      return { state: "empty" as const, cells: Array.from({ length: 5 }, () => ({ letter: null, status: "empty" as const, state: "idle" as const })) };
+      return { state: "empty" as const, cells: Array.from({ length: round.length }, () => ({ letter: null, status: "empty" as const, state: "idle" as const })) };
     });
   }, [round, buffer, fixed, shakeTick]);
 
@@ -229,6 +230,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
           palette={palette}
           evidence={evidence}
           disabled={!inputEnabled}
+          layout={latvianPack.keyboardLayout}
           onKey={(key) => {
             if (key === "enter") submit();
             else if (key === "back") backspace();

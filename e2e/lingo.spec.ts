@@ -196,4 +196,109 @@ test.describe("Lingo", () => {
     await expect(page.getByText("Šo vārdu jau mēģināji.")).toBeVisible();
     await expect(labeled).toHaveCount(10);
   });
+
+  test("unlimited plays a four-letter round, continues and recovers after refresh", async ({ page }) => {
+    await page.goto("/lingo?endlesslen=4&endlessword=akls");
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    await expect(page.getByRole("radio", { name: "4 burti" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await typeWord(page, "akls");
+    await pressEnter(page);
+    await expect(page.getByText("“AKLS” atminēts ar 1. mēģinājumu!")).toBeVisible();
+    // The next word keeps the four-letter board.
+    await page.getByRole("button", { name: /Nākamais vārds/ }).click();
+    const rowCells = page
+      .getByRole("group", { name: "Spēles laukums" })
+      .locator('[role="row"]')
+      .first()
+      .getByRole("gridcell");
+    await expect(rowCells).toHaveCount(4);
+    // Refresh restores the in-progress four-letter session.
+    await page.reload();
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    await expect(
+      page
+        .getByRole("group", { name: "Spēles laukums" })
+        .locator('[role="row"]')
+        .first()
+        .getByRole("gridcell"),
+    ).toHaveCount(4);
+  });
+
+  test("unlimited plays a seven-letter round with freeform guesses and locked letters", async ({ page }) => {
+    await page.goto("/lingo?endlesslen=7&endlessword=āboliņš");
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    const board = page.getByRole("group", { name: "Spēles laukums" });
+    await expect(
+      board.locator('[role="row"]').first().getByRole("gridcell"),
+    ).toHaveCount(7);
+    // A freeform invented guess is accepted and consumes exactly one attempt.
+    await typeWord(page, "ābcdefg");
+    await pressEnter(page);
+    await expect(board.getByLabel(/pareizi|citā vietā|nav vārdā/)).toHaveCount(7);
+    // Solving works when typing the complete word incl. locked letters.
+    await typeWord(page, "āboliņš");
+    await pressEnter(page);
+    await expect(
+      page.getByText("“ĀBOLIŅŠ” atminēts ar 2. mēģinājumu!"),
+    ).toBeVisible();
+  });
+
+  test("switching word lengths preserves each session", async ({ page }) => {
+    await page.goto("/lingo?endlesslen=4&endlessword=akls");
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    await typeWord(page, "akls");
+    await pressEnter(page);
+    await expect(page.getByText(/“AKLS” atminēts/)).toBeVisible();
+    // A five-letter game is a separate session.
+    await page.getByRole("radio", { name: "5 burti" }).click();
+    await expect(
+      page
+        .getByRole("group", { name: "Spēles laukums" })
+        .locator('[role="row"]')
+        .first()
+        .getByRole("gridcell"),
+    ).toHaveCount(5);
+    await expect(page.getByText(/“AKLS” atminēts/)).toBeHidden();
+    // Returning to four letters restores the finished round.
+    await page.getByRole("radio", { name: "4 burti" }).click();
+    await expect(page.getByText(/“AKLS” atminēts/)).toBeVisible();
+  });
+
+  test("random mode picks a valid length and persists across refresh", async ({ page }) => {
+    await page.goto("/lingo?endlesslen=random");
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    const board = page.getByRole("group", { name: "Spēles laukums" });
+    const cells = board.locator('[role="row"]').first().getByRole("gridcell");
+    const n = await cells.count();
+    expect(n).toBeGreaterThanOrEqual(4);
+    expect(n).toBeLessThanOrEqual(7);
+    const firstLabel = await cells
+      .first()
+      .getAttribute("aria-label")
+      .then((l) => (l ?? "a").slice(0, 1).toLowerCase());
+    await typeWord(page, firstLabel + "abcdefg".slice(0, n - 1));
+    await pressEnter(page);
+    await expect(board.getByLabel(/pareizi|citā vietā|nav vārdā/)).toHaveCount(n);
+    // Refresh and return to unlimited: the session continues.
+    await page.reload();
+    await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Neierobežotā" }).click();
+    await expect(board.getByLabel(/pareizi|citā vietā|nav vārdā/)).toHaveCount(n);
+  });
+
+  test("shows a color legend matching the active palette", async ({ page }) => {
+    await page.goto("/lingo");
+    await skipOnboarding(page);
+    await expect(page.getByLabel("Burtu krāsu skaidrojums")).toBeVisible();
+    await expect(page.getByText("Pareizā vietā")).toBeVisible();
+    await expect(page.getByText("Nav vārdā")).toBeVisible();
+  });
 });

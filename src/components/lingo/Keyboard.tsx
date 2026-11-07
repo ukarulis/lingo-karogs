@@ -3,46 +3,43 @@
 import { memo } from "react";
 import { Delete, CornerDownLeft } from "lucide-react";
 import type { CellStatus } from "@/lib/lingo/engine";
+import type { KeyboardLayout } from "@/lib/lingo/pack/types";
+import { LATVIAN_KEYBOARD_ROWS } from "@/lib/lingo/pack/latvian";
 import type { Palette } from "@/lib/lingo/colors";
 import { statusStyle } from "@/lib/lingo/colors";
 import { cn } from "@/lib/utils";
-
-// Diacritics get their own row so letter keys never shrink below a usable
-// size on narrow phones; the full Latvian alphabet stays accessible.
-const ROWS: Array<Array<string | "enter" | "back">> = [
-  ["ā", "ē", "ī", "ū", "ķ", "ļ", "ņ", "ģ", "š", "ž", "č"],
-  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-  ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-  ["enter", "z", "c", "v", "b", "n", "m", "back"],
-];
-
-const DIACRITIC = new Set(["ā", "ē", "ī", "ū", "ķ", "ļ", "ņ", "ģ", "š", "ž", "č"]);
 
 export const Keyboard = memo(function Keyboard({
   evidence,
   palette,
   onKey,
   disabled,
+  layout,
 }: {
   evidence: Record<string, CellStatus>;
   palette: Palette;
   onKey: (key: string) => void;
   disabled?: boolean;
+  layout?: KeyboardLayout;
 }) {
+  const rows = layout?.rows ?? LATVIAN_KEYBOARD_ROWS;
+  const compactKeys = new Set(layout?.compactKeys ?? []);
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-1.5">
-      {ROWS.map((row, r) => (
+      {rows.map((row, r) => (
         <div
           key={r}
           className={cn(
             "grid w-full gap-1 sm:gap-1.5",
-            r === 0
+            r === 0 && rows.length === 4
               ? "grid-cols-11"
-              : r === 1
+              : r === 1 && rows.length === 4
                 ? "grid-cols-10"
-                : r === 2
+                : r === 2 && rows.length === 4
                   ? "grid-cols-9 px-3.5"
-                  : "grid-cols-[1.5fr_repeat(7,1fr)_1.5fr]",
+                  : r === rows.length - 1 && rows.length === 4
+                    ? "grid-cols-[1.5fr_repeat(7,1fr)_1.5fr]"
+                    : "grid-flow-col auto-cols-fr",
           )}
         >
           {row.map((key) => {
@@ -69,7 +66,7 @@ export const Keyboard = memo(function Keyboard({
             }
             const status = evidence[key];
             const style = status ? statusStyle(status, palette) : null;
-            const diacritic = DIACRITIC.has(key);
+            const compact = compactKeys.has(key);
             return (
               <button
                 key={key}
@@ -79,7 +76,7 @@ export const Keyboard = memo(function Keyboard({
                 aria-label={`Burts ${key}${status === "correct" ? ", pareizā vietā" : status === "present" ? ", citā vietā" : status === "absent" ? ", nav vārdā" : ""}`}
                 className={cn(
                   "flex h-12 items-center justify-center rounded-lg text-sm font-bold uppercase transition active:scale-95 disabled:opacity-40 sm:h-13 sm:text-base",
-                  diacritic && "text-[13px] sm:text-sm",
+                  compact && "text-[13px] sm:text-sm",
                   !style && "bg-stone-200 text-stone-800 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700",
                 )}
                 style={

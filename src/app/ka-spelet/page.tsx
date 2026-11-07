@@ -51,8 +51,8 @@ export default function KaSpeletPage() {
               <b className="text-amber-600">Dzeltens</b> — burts ir vārdā, bet citā vietā.
             </li>
             <li>
-              <b className="text-stone-500">Pelēks</b> — burta vārdā nav (vēsturiskajā
-              shēmā — <b className="text-emerald-600">zaļš</b>).
+              <b className="text-red-500">Sarkans</b> — burta vārdā nav
+              (vēsturiskajā shēmā — <b className="text-emerald-600">zaļš</b>).
             </li>
           </ul>
           <p className="mt-3 font-semibold">Dienas vārds</p>

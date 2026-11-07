@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { HelpCircle, Palette } from "lucide-react";
 import { Segmented } from "@/components/ui/segmented";
 import { useDark, useSettings } from "@/lib/use-settings";
-import { paletteFor } from "@/lib/lingo/colors";
+import { paletteFor, statusStyle, type Palette as LingoPalette } from "@/lib/lingo/colors";
+import type { CellStatus } from "@/lib/lingo/engine";
 import { storageGet, storageSet } from "@/lib/store/storage";
 import { DailyMode } from "./DailyMode";
 import { EndlessMode } from "./EndlessMode";
@@ -12,6 +13,38 @@ import { ArcadeMode } from "./ArcadeMode";
 import { LingoOnboarding } from "./Onboarding";
 
 type LingoMode = "daily" | "endless" | "arcade";
+
+function ColorLegend({
+  palette,
+}: {
+  palette: LingoPalette;
+}) {
+  const items: Array<{ status: CellStatus; label: string }> = [
+    { status: "correct", label: "Pareizā vietā" },
+    { status: "present", label: "Citā vietā" },
+    { status: "absent", label: "Nav vārdā" },
+  ];
+  return (
+    <span
+      className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+      aria-label="Burtu krāsu skaidrojums"
+    >
+      {items.map(({ status, label }) => {
+        const style = statusStyle(status, palette);
+        return (
+          <span key={status} className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="size-3 rounded-sm border border-black/10"
+              style={{ backgroundColor: style.backgroundColor }}
+            />
+            {label}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export function LingoApp() {
   const [mode, setMode] = useState<LingoMode>("daily");
@@ -56,6 +89,9 @@ export function LingoApp() {
       {mode === "daily" ? <DailyMode palette={palette} /> : null}
       {mode === "endless" ? <EndlessMode palette={palette} /> : null}
       {mode === "arcade" ? <ArcadeMode palette={palette} /> : null}
+      <div className="mx-auto mt-5 max-w-md text-center text-xs text-stone-500 dark:text-stone-400">
+        <ColorLegend palette={palette} />
+      </div>
       <p className="mx-auto mt-5 max-w-md text-center text-xs text-stone-500 dark:text-stone-400">
         {mode === "arcade"
           ? "Klasiskajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam."

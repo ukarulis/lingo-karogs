@@ -19,7 +19,9 @@ export function shareText(
               : "🟩"
             : c === "present"
               ? "🟨"
-              : "⬛",
+              : palette === "legacy"
+                ? "🟩"
+                : "🟥",
         )
         .join(""),
     )

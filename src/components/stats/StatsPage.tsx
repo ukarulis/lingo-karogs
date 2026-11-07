@@ -22,9 +22,11 @@ import { Card } from "@/components/ui/card";
 import { Kpi } from "@/components/ui/kpi";
 import {
   type LingoStats,
+  type EndlessBucket,
   dailyStreaks,
   loadLingoStats,
 } from "@/lib/store/lingoStats";
+import { enabledLengths } from "@/lib/lingo/pools";
 import { karogsAggregates, loadKarogsStats } from "@/lib/store/karogsStats";
 import { ACHIEVEMENTS, loadAchievements } from "@/lib/store/achievements";
 import { apiLeaderboard } from "@/lib/multiplayer/client";
@@ -43,13 +45,19 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe,
 };
 
-function GuessDistribution({ stats }: { stats: LingoStats }) {
-  const dist = stats.endless.distribution;
+function GuessDistribution({
+  bucket,
+  title,
+}: {
+  bucket: EndlessBucket;
+  title: string;
+}) {
+  const dist = bucket.distribution;
   const max = Math.max(1, ...dist);
   return (
     <Card className="p-5">
       <h2 className="mb-3 text-sm font-bold text-stone-600 dark:text-stone-300">
-        Minējumu sadalījums (neierobežotā spēle)
+        {title}
       </h2>
       <div className="space-y-1.5">
         {dist.map((count, i) => (
@@ -70,10 +78,32 @@ function GuessDistribution({ stats }: { stats: LingoStats }) {
 
 function LingoSection({ stats }: { stats: LingoStats }) {
   const streaks = dailyStreaks(stats.daily);
-  const e = stats.endless;
-  const total = e.total;
-  const winRate = total ? Math.round((e.wins / total) * 100) : 0;
   const solvedDays = Object.values(stats.daily).filter((d) => d.won).length;
+  const buckets = enabledLengths().map((len) => ({
+    length: len,
+    bucket:
+      stats.endless[`lv:${len}`] ??
+      ({
+        total: 0,
+        wins: 0,
+        losses: 0,
+        distribution: [],
+        totalSolved: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+      } as EndlessBucket),
+  }));
+  const allEndless: EndlessBucket = {
+    total: buckets.reduce((a, b) => a + b.bucket.total, 0),
+    wins: buckets.reduce((a, b) => a + b.bucket.wins, 0),
+    losses: buckets.reduce((a, b) => a + b.bucket.losses, 0),
+    distribution: [],
+    totalSolved: buckets.reduce((a, b) => a + b.bucket.totalSolved, 0),
+    currentStreak: 0,
+    bestStreak: Math.max(0, ...buckets.map((b) => b.bucket.bestStreak)),
+  };
+  const total = allEndless.total;
+  const winRate = total ? Math.round((allEndless.wins / total) * 100) : 0;
   return (
     <section aria-labelledby="lingo-stats-title">
       <h2 id="lingo-stats-title" className="mb-3 text-lg font-extrabold">
@@ -81,16 +111,72 @@ function LingoSection({ stats }: { stats: LingoStats }) {
       </h2>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon={Target} label="Pabeigti raundi" value={total + solvedDays} />
-        <Kpi icon={Trophy} label="Uzvaras" value={e.wins + solvedDays} />
+        <Kpi icon={Trophy} label="Uzvaras" value={allEndless.wins + solvedDays} />
         <Kpi icon={Flag} label="Uzvaru īpatsvars" value={`${winRate}%`} />
         <Kpi icon={CalendarCheck} label="Dienas sērija / rekords" value={`${streaks.current} / ${streaks.best}`} />
-        <Kpi icon={Sparkles} label="Atminēti vārdi" value={e.totalSolved + solvedDays} />
-        <Kpi icon={Clock} label="Vid. mēģinājumi uzvarā" value={e.distribution.reduce((a, b) => a + b, 0) ? "—" : "—"} hint="skat. sadalījumu" />
+        <Kpi icon={Sparkles} label="Atminēti vārdi" value={allEndless.totalSolved + solvedDays} />
+        <Kpi icon={Clock} label="Neierobežotie vārdi" value={total} hint="pēc garumiem" />
         <Kpi icon={Gamepad2} label="Klasikas rekords" value={stats.arcade.bestScore} />
         <Kpi icon={Medal} label="Klasikas sesijas" value={stats.arcade.sessions} />
       </div>
-      <div className="mt-3">
-        <GuessDistribution stats={stats} />
+      <div className="mt-3 space-y-3">
+        <Card className="p-0">
+          <div
+            className="overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label="Neierobežotās spēles rezultāti pēc vārda garuma"
+          >
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Neierobežotās spēles rezultāti pēc vārda garuma
+              </caption>
+              <thead>
+                <tr className="border-b border-stone-200 text-left text-xs font-bold text-stone-400 dark:border-stone-800">
+                  <th className="px-4 py-2.5">Garums</th>
+                  <th className="px-4 py-2.5 text-right">Spēles</th>
+                  <th className="px-4 py-2.5 text-right">Uzvaras</th>
+                  <th className="px-4 py-2.5 text-right">Īpatsvars</th>
+                  <th className="px-4 py-2.5 text-right">Sērija / rekords</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buckets.map(({ length, bucket }) => {
+                  const pct = bucket.total
+                    ? Math.round((bucket.wins / bucket.total) * 100)
+                    : 0;
+                  return (
+                    <tr
+                      key={length}
+                      className="border-b border-stone-100 last:border-0 dark:border-stone-800/60"
+                    >
+                      <td className="px-4 py-2 font-semibold">{length} burti</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{bucket.total}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{bucket.wins}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {bucket.total ? `${pct}%` : "—"}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {bucket.total
+                          ? `${bucket.currentStreak} / ${bucket.bestStreak}`
+                          : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+        {buckets
+          .filter(({ bucket }) => bucket.total > 0)
+          .map(({ length, bucket }) => (
+            <GuessDistribution
+              key={length}
+              bucket={bucket}
+              title={`Minējumu sadalījums — ${length} burti`}
+            />
+          ))}
       </div>
     </section>
   );
@@ -272,7 +358,10 @@ function Leaderboard() {
 
 export function StatsPage() {
   const lingo = loadLingoStats();
-  const lingoTotal = lingo.endless.total + Object.keys(lingo.daily).length + lingo.arcade.sessions;
+  const lingoTotal =
+    Object.values(lingo.endless).reduce((a, b) => a + b.total, 0) +
+    Object.keys(lingo.daily).length +
+    lingo.arcade.sessions;
   const karogs = karogsAggregates(loadKarogsStats());
   const hasData = lingoTotal > 0 || karogs.games > 0;
   return (

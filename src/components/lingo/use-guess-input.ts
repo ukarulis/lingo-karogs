@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { LanguagePack } from "@/lib/lingo/pack/types";
+import { latvianPack } from "@/lib/lingo/pack/latvian";
 
-const LATVIAN_KEY = /^[a-zA-ZāčēģīķļņšūžĀČĒĢĪĶĻŅŠŪŽ]$/;
 const DEFAULT_LENGTH = 5;
 
 function normalizeLength(
@@ -26,6 +27,7 @@ export function useGuessInput({
   enabled,
   fixedPositions,
   length = DEFAULT_LENGTH,
+  pack = latvianPack,
   onSubmit,
 }: {
   enabled: boolean;
@@ -34,6 +36,7 @@ export function useGuessInput({
   /** Return true when the guess was accepted; false keeps the word editable. */
   onSubmit: (word: string) => boolean;
   length?: number;
+  pack?: LanguagePack;
 }) {
   const [buffer, setBuffer] = useState<(string | null)[]>(() =>
     normalizeLength(
@@ -88,7 +91,8 @@ export function useGuessInput({
   const append = useCallback(
     (raw: string) => {
       if (!enabledRef.current) return;
-      const ch = raw.toLowerCase();
+      const ch = pack.normalizeInput(raw);
+      if (ch.length === 0) return;
       const prev = normalizeLength(bufferRef.current, length);
       const fixed = fixedRef.current;
       let cursor = Math.min(cursorRef.current, length);
@@ -127,7 +131,7 @@ export function useGuessInput({
       cursorRef.current = cursor;
       setBuffer(next);
     },
-    [length],
+    [length, pack],
   );
 
   const backspace = useCallback(() => {
@@ -184,13 +188,16 @@ export function useGuessInput({
       } else if (e.key === "Backspace") {
         e.preventDefault();
         backspace();
-      } else if (LATVIAN_KEY.test(e.key)) {
-        append(e.key);
+      } else {
+        const normalized = pack.normalizeInput(e.key);
+        if (normalized.length > 0 && pack.validateCharacters(normalized)) {
+          append(e.key);
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [append, backspace, submit]);
+  }, [append, backspace, submit, pack]);
 
   const full = buffer.every((c) => c !== null) && buffer.length === length;
   return { buffer, full, shakeTick, append, backspace, submit };

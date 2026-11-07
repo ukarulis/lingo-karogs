@@ -5,6 +5,9 @@
 // word length, attempt count, guessing policy, first-letter revelation and
 // confirmed-letter carry-forward are rules, not hardcoded assumptions.
 
+import type { LanguagePack } from "./pack/types";
+import { resolvePack } from "./pack/registry";
+
 export type CellStatus = "correct" | "present" | "absent";
 /**
  * Solo rounds end in `won` or `lost`. `resolved` is reserved for server-
@@ -27,6 +30,9 @@ export const ARCADE_POINTS: readonly number[] = [500, 400, 300, 250, 200];
 export const ARCADE_START_LIVES = 5;
 export const ARCADE_MAX_LIVES = 10;
 export const ARCADE_START_HINTS = 5;
+
+/** Versioned rule-set identity carried on every round/save. */
+export const RULESET_VERSION = "lingo-2.0";
 
 export interface LingoConfig {
   /** Target word length; the engine supports 4-7 letters. */
@@ -73,6 +79,10 @@ export function modeDefaults(mode: LingoMode): LingoConfig {
 
 export interface LingoRound extends LingoConfig {
   mode: LingoMode;
+  /** Language pack the round plays under. */
+  language: string;
+  /** Rule-set version that adjudicates this round. */
+  ruleSet: string;
   target: string;
   firstLetter: string;
   guesses: string[];
@@ -152,18 +162,36 @@ export function evaluateGuess(guess: string, target: string): CellStatus[] {
   if (guess.length !== target.length || guess.length === 0) {
     throw new Error("evaluateGuess expects two words of equal length");
   }
-  const result: CellStatus[] = new Array(guess.length).fill("absent");
+  return evaluateSegments([...guess], [...target]);
+}
+
+/**
+ * Two-pass evaluation over pre-segmented letters (grapheme clusters).
+ * Correctness logic lives here; string convenience wrappers segment first.
+ */
+export function evaluateSegments(
+  guessSegments: readonly string[],
+  targetSegments: readonly string[],
+): CellStatus[] {
+  if (
+    guessSegments.length !== targetSegments.length ||
+    guessSegments.length === 0
+  ) {
+    throw new Error("evaluateSegments expects two equal-length words");
+  }
+  const result: CellStatus[] = new Array(guessSegments.length).fill("absent");
   const remaining: Record<string, number> = {};
-  for (let i = 0; i < guess.length; i++) {
-    if (guess[i] === target[i]) {
+  for (let i = 0; i < guessSegments.length; i++) {
+    if (guessSegments[i] === targetSegments[i]) {
       result[i] = "correct";
     } else {
-      remaining[target[i]] = (remaining[target[i]] ?? 0) + 1;
+      remaining[targetSegments[i]] =
+        (remaining[targetSegments[i]] ?? 0) + 1;
     }
   }
-  for (let i = 0; i < guess.length; i++) {
+  for (let i = 0; i < guessSegments.length; i++) {
     if (result[i] === "correct") continue;
-    const ch = guess[i];
+    const ch = guessSegments[i];
     if ((remaining[ch] ?? 0) > 0) {
       result[i] = "present";
       remaining[ch]--;
@@ -179,6 +207,8 @@ export interface CreateRoundOptions {
   guessPolicy?: GuessPolicy;
   revealFirstLetter?: boolean;
   carryConfirmedLetters?: boolean;
+  /** Language pack to validate and segment with (default: Latvian). */
+  pack?: LanguagePack;
 }
 
 export function createRound(
@@ -187,17 +217,24 @@ export function createRound(
   opts: CreateRoundOptions = {},
 ): LingoRound {
   const defaults = modeDefaults(mode);
+  const pack = opts.pack ?? resolvePack(undefined);
   const length = opts.length ?? defaults.length;
   if (length < MIN_WORD_LENGTH || length > MAX_WORD_LENGTH) {
     throw new Error(`Unsupported word length: ${length}`);
   }
-  const t = normalizeWord(target);
-  if (!isLatvianWord(t, length)) {
+  const maxAttempts = opts.maxAttempts ?? defaults.maxAttempts;
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20) {
+    throw new Error(`Unsupported attempt limit: ${maxAttempts}`);
+  }
+  const t = pack.normalizeInput(target);
+  if (pack.segmentWord(t).length !== length || !pack.validateCharacters(t)) {
     throw new Error(`Invalid target word: ${target}`);
   }
   const revealFirstLetter = opts.revealFirstLetter ?? defaults.revealFirstLetter;
   return {
     mode,
+    language: pack.id,
+    ruleSet: RULESET_VERSION,
     target: t,
     firstLetter: revealFirstLetter
       ? (opts.firstLetter ?? t[0]).toLowerCase()
@@ -209,7 +246,7 @@ export function createRound(
     status: "playing",
     attemptsUsed: 0,
     length,
-    maxAttempts: opts.maxAttempts ?? defaults.maxAttempts,
+    maxAttempts,
     guessPolicy: opts.guessPolicy ?? defaults.guessPolicy,
     revealFirstLetter,
     carryConfirmedLetters:
@@ -229,17 +266,22 @@ export function submitGuess(
   if (round.status !== "playing") {
     throw new LingoError("round-over", "Raunds jau ir beidzies");
   }
-  const word = normalizeWord(raw);
-  if (word.length !== round.length) {
+  const pack = resolvePack(round.language);
+  const word = pack.normalizeInput(raw);
+  const segments = pack.segmentWord(word);
+  if (segments.length !== round.length) {
     throw new LingoError("invalid-word", `Vārdam jābūt ${round.length} burtu garam`);
   }
-  if (!isLatvianWord(word, round.length)) {
-    throw new LingoError("invalid-word", "Vārds drīkst saturēt tikai latviešu burtus");
+  if (!pack.validateCharacters(word)) {
+    throw new LingoError(
+      "invalid-word",
+      `Vārds drīkst saturēt tikai ${pack.displayName.toLowerCase()} valodas burtus`,
+    );
   }
   if (round.guessPolicy === "dictionary" && !guessSet.has(word)) {
     throw new LingoError("not-in-dictionary", "Šāds vārds nav vārdnīcā");
   }
-  if (round.revealFirstLetter && word[0] !== round.firstLetter) {
+  if (round.revealFirstLetter && segments[0] !== round.firstLetter) {
     throw new LingoError(
       "wrong-first-letter",
       `Vārdam jāsākas ar burtu “${round.firstLetter.toUpperCase()}”`,
@@ -252,7 +294,7 @@ export function submitGuess(
     throw new LingoError("round-over", "Mēģinājumi izsmelti");
   }
   const guesses = [...round.guesses, word];
-  const result = evaluateGuess(word, round.target);
+  const result = evaluateSegments(segments, pack.segmentWord(round.target));
   const results = [...round.results, result];
   const won = word === round.target;
   const lost = !won && guesses.length >= round.maxAttempts;
@@ -460,7 +502,11 @@ export function normalizeRound(raw: unknown): LingoRound | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   if (typeof r.target !== "string") return null;
-  const target = normalizeWord(r.target);
+  const language =
+    typeof r.language === "string" && r.language.length > 0 ? r.language : "lv";
+  const pack = resolvePack(language);
+  const target = pack.normalizeInput(r.target);
+  const targetSegments = pack.segmentWord(target);
   const mode: LingoMode =
     r.mode === "daily" || r.mode === "endless" || r.mode === "arcade"
       ? r.mode
@@ -469,21 +515,34 @@ export function normalizeRound(raw: unknown): LingoRound | null {
 
   const storedLength = intInRange(r.length, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
   let length: number;
-  if (target.length >= MIN_WORD_LENGTH && target.length <= MAX_WORD_LENGTH) {
-    length = target.length;
+  if (
+    targetSegments.length >= MIN_WORD_LENGTH &&
+    targetSegments.length <= MAX_WORD_LENGTH
+  ) {
+    length = targetSegments.length;
   } else if (storedLength !== null) {
     length = storedLength;
   } else {
     return null;
   }
   if (storedLength !== null && storedLength !== length) return null;
-  if (!isLatvianWord(target, length)) return null;
+  if (!pack.validateCharacters(target)) return null;
 
   if (!Array.isArray(r.guesses) || !r.guesses.every((g) => typeof g === "string")) {
     return null;
   }
   const guesses = r.guesses as string[];
-  if (!guesses.every((g) => isLatvianWord(g, length))) return null;
+  if (
+    !guesses.every((g) => {
+      const normalized = pack.normalizeInput(g);
+      return (
+        pack.segmentWord(normalized).length === length &&
+        pack.validateCharacters(normalized)
+      );
+    })
+  ) {
+    return null;
+  }
 
   const maxAttempts =
     intInRange(r.maxAttempts, 1, 20) ?? defaults.maxAttempts;
@@ -575,6 +634,11 @@ export function normalizeRound(raw: unknown): LingoRound | null {
 
   return {
     mode,
+    language,
+    ruleSet:
+      typeof r.ruleSet === "string" && r.ruleSet.length > 0
+        ? r.ruleSet
+        : RULESET_VERSION,
     target,
     firstLetter,
     guesses,

@@ -8,6 +8,7 @@ import {
   type LingoRound,
   LingoError,
   MAX_ATTEMPTS,
+  RULESET_VERSION,
   arcadeHint,
   arcadeNextWord,
   arcadeSubmit,
@@ -444,5 +445,34 @@ describe("legacy save recovery", () => {
     expect(normalizeRound({ target: "ab" })).toBeNull();
     expect(normalizeRound({ target: "ābols", guesses: [42] })).toBeNull();
     expect(normalizeRound({ target: "ābols", guesses: [], length: 7 })).toBeNull();
+  });
+});
+
+describe("config-driven attempts and rule-set identity", () => {
+  it("uses the configured attempt limit instead of the global default", () => {
+    const round = createRound("ābols", "endless", { maxAttempts: 3 });
+    let r = round;
+    for (const w of ["ālsoa", "āldea", "āldsa"]) {
+      r = submitGuess(r, w, DICT);
+    }
+    expect(r.status).toBe("lost");
+    expect(r.attemptsUsed).toBe(3);
+    expect(() => submitGuess(r, "ābols", DICT)).toThrowError(LingoError);
+  });
+
+  it("stamps language and rule-set version on every round", () => {
+    const round = createRound("ābols", "daily");
+    expect(round.language).toBe("lv");
+    expect(round.ruleSet).toBe(RULESET_VERSION);
+    const normalized = normalizeRound({
+      mode: "daily",
+      target: "ābols",
+      firstLetter: "ā",
+      guesses: [],
+      revealed: [],
+      status: "playing",
+    });
+    expect(normalized!.language).toBe("lv");
+    expect(normalized!.ruleSet).toBe(RULESET_VERSION);
   });
 });

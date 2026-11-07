@@ -27,21 +27,47 @@ export const LingoBoard = memo(function LingoBoard({
   rows: BoardRow[];
   palette: Palette;
 }) {
+  const columns = rows[0]?.cells.length ?? 5;
+  const rowCount = rows.length;
+  const compact = columns >= 6;
+  const letterClass =
+    columns <= 5
+      ? "text-3xl"
+      : columns === 6
+        ? "text-2xl"
+        : "text-xl sm:text-2xl";
+  const containerClass =
+    columns === 5
+      ? "mx-auto w-full max-w-[320px] sm:max-w-[360px]"
+      : "mx-auto w-full";
+  const containerStyle =
+    columns === 5
+      ? undefined
+      : { maxWidth: `${columns * 72 - 8}px` };
   return (
     <div
       role="group"
       aria-label="Spēles laukums"
-      className="mx-auto w-full max-w-[320px] sm:max-w-[360px]"
+      className={containerClass}
+      style={containerStyle}
     >
-      <div role="grid" className="grid grid-rows-5 gap-2">
+      <div
+        role="grid"
+        className={cn("grid", compact ? "gap-1 sm:gap-1.5" : "gap-2")}
+        style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
+      >
         {rows.map((row, r) => (
           <div
             key={r}
             role="row"
             className={cn(
-              "grid grid-cols-5 gap-2",
+              "grid",
+              compact ? "gap-1 sm:gap-1.5" : "gap-2",
               row.shake && "animate-[shake_0.45s_ease-in-out]",
             )}
+            style={{
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            }}
           >
             {row.cells.map((cell, c) => {
               const style = statusStyle(cell.status, palette);
@@ -55,7 +81,8 @@ export const LingoBoard = memo(function LingoBoard({
                       : "Tukšs lauciņš"
                   }
                   className={cn(
-                    "grid aspect-square place-items-center rounded-xl border-2 text-3xl font-black uppercase transition-all",
+                    "grid aspect-square place-items-center rounded-xl border-2 font-black uppercase transition-all",
+                    letterClass,
                     cell.state === "done" && "animate-[flip_0.5s_ease-in-out]",
                     cell.state === "typed" &&
                       "border-stone-400 bg-white dark:border-stone-400 dark:bg-stone-800",
