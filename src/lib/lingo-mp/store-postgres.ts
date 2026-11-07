@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Pool, type PoolClient } from "pg";
+import { DIGITALOCEAN_CA_PEM } from "./do-ca";
 import type {
   LingoMpDbEvent,
   LingoMpDbMatch,
@@ -77,12 +78,9 @@ export class PostgresLingoMpStore implements LingoMpStore {
       const sslConfig: { rejectUnauthorized: boolean; ca?: Buffer } = {
         rejectUnauthorized: true,
       };
-      const caFile = process.env.LINGO_MP_SSL_CA_FILE;
-      if (caFile) {
-        sslConfig.ca = fs.readFileSync(
-          path.resolve(/* turbopackIgnore: true */ process.cwd(), caFile),
-        );
-      }
+      // The CA is bundled (public certificate) so no runtime file access is
+      // required in serverless functions.
+      sslConfig.ca = Buffer.from(DIGITALOCEAN_CA_PEM);
       ssl = sslConfig;
     }
     // node-postgres treats sslmode=* as a verify alias and ignores the

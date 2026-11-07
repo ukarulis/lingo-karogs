@@ -308,15 +308,27 @@ async function readyBoth(
     { headers: { "x-player-token": "forged" } },
   );
   check("invalid token rejected", forged.status === 403, `status=${forged.status}`);
-  const key = fs.readFileSync(`${process.env.TEMP}/lingo-healthkey.txt`, "utf8").trim();
-  const okHealth = await fetch(BASE + "/api/lingo-mp/health", {
-    headers: { "x-operator-key": key },
-  });
-  const health = (await okHealth.json()) as { ok: boolean; db?: { schemaVersion: number } };
-  check(
-    "operator health reports reachable db",
-    okHealth.status === 200 && health.ok === true && (health.db?.schemaVersion ?? 0) >= 1,
-  );
+  const keyPath = `${process.env.TEMP}/lingo-healthkey.txt`;
+  if (fs.existsSync(keyPath)) {
+    const key = fs.readFileSync(keyPath, "utf8").trim();
+    const okHealth = await fetch(BASE + "/api/lingo-mp/health", {
+      headers: { "x-operator-key": key },
+    });
+    const health = (await okHealth.json()) as {
+      ok: boolean;
+      db?: { schemaVersion: number };
+    };
+    check(
+      "operator health reports reachable db",
+      okHealth.status === 200 &&
+        health.ok === true &&
+        (health.db?.schemaVersion ?? 0) >= 1,
+    );
+  } else {
+    console.log(
+      "SKIP  operator-health correct-key probe (no local operator key)",
+    );
+  }
   const badHealth = await fetch(BASE + "/api/lingo-mp/health", {
     headers: { "x-operator-key": "wrong" },
   });
