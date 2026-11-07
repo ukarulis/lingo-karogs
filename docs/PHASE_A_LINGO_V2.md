@@ -115,10 +115,21 @@ dublikātu minējumiem tiek atjaunots un tālāki dublikāti tiek bloķēti.
 
 ## 11. Ražošanas izvietošanas statuss
 
-Sk. repozitorija stāvokli: izmaiņas ir apstiprinātas ar pilno testu ciklu,
-bet izvietošana Vercel notiek tikai tad, ja ir pieejami projekta
-akreditācijas dati. Ja to nav, prasības ir: `VERCEL_TOKEN` un piekļuve
-projektam `lingo-karogs` (`npx vercel deploy --prod`).
+**Izvietots ražošanā.** Komits `bb5e834` izvietots Vercel projektā
+`lingo-karogs` (komanda `npx vercel deploy --prod`), izvietojums
+`dpl_7NaDZGrhtYSePVZ43qy7CquW3A5i`, statuss READY, publiskā adrese
+https://lingo-karogs.vercel.app.
+
+Ražošanas pārbaude:
+
+- `scripts/smoke-production.mjs` — 9/9 pārbaudes.
+- `scripts/verify-production.mjs` — 5/5 pārbaudes.
+- Reālā pārlūkprogrammā pret ražošanu: brīvais minējums pieņemts un
+  patērē 1 mēģinājumu; dublikāts bloķēts ar ziņojumu; pareizie burti
+  (`R`, `U`, `P`) redzami bloķēti nākamajā rindā; bez lapas kļūdām.
+- Tiešsaistes vairāku spēlētāju režīms joprojām godīgi ziņo, ka nav
+  pieejams (Supabase konfigurācija nav nodrošināta) — A fāzē tas nav
+  prasīts, bet C fāzei būs nepieciešami akreditācijas dati.
 
 ## 12. Manuālās pieņemšanas scenāriji
 
