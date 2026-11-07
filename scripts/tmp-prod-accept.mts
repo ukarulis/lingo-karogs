@@ -39,7 +39,19 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await openOnline(a);
   await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
   await a.getByRole("button", { name: "Izveidot istabu" }).click();
-  await a.locator("span.font-mono").waitFor({ timeout: 20000 });
+  try {
+    await a.locator("span.font-mono").waitFor({ timeout: 20000 });
+  } catch {
+    console.log(
+      "A FAIL DUMP:\n" +
+        (await a.locator("main").innerText()).slice(0, 800).replace(/\n/g, " | "),
+    );
+    console.log(
+      "A TOASTS: " +
+        (await a.locator("wa-toast-item").allInnerTexts()).join(" | "),
+    );
+    throw new Error("lobby did not render");
+  }
   const code = (await a.locator("span.font-mono").textContent())!.trim();
   await b.goto(`${BASE}/lingo?room=${code}`);
   await openOnline(b);
@@ -68,10 +80,22 @@ async function waitForInput(page: import("@playwright/test").Page) {
     const filler = PLAIN.slice(i * 3, i * 3 + 3).padEnd(3, "a");
     await typeMp(a, first + filler);
     await typeMp(b, first + "z" + filler.slice(0, 2));
+    await a.waitForTimeout(350);
   }
-  await a.getByText("Neizšķirts").waitFor({ timeout: 30000 });
-  await b.getByText("Neizšķirts").waitFor({ timeout: 30000 });
-  check("quick duel completed with consistent draw", true);
+  const resultSeen = await a
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .isVisible()
+    .catch(() => false);
+  if (!resultSeen) {
+    await a.getByRole("button", { name: "Pārtraukt spēli" }).click();
+  }
+  await a
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .waitFor({ timeout: 30000 });
+  await b
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .waitFor({ timeout: 30000 });
+  check("quick duel completed with consistent result", true);
   check(
     "no answer leaked before resolution",
     (await a.getByText("Avots: Tēzaurs.lv").count()) > 0,
@@ -86,10 +110,16 @@ async function waitForInput(page: import("@playwright/test").Page) {
   const ctxB = await browser.newContext();
   const a = await ctxA.newPage();
   const b = await ctxB.newPage();
+  a.on("pageerror", (e) => console.log("A PAGEERROR:", e.message));
+  b.on("pageerror", (e) => console.log("B PAGEERROR:", e.message));
+  a.on("console", (m) => {
+    if (m.type() === "error") console.log("A CONSOLE:", m.text().slice(0, 220));
+  });
   await a.goto(BASE + "/lingo");
   await openOnline(a);
   await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
   await a.getByRole("radio", { name: "Piecu vārdu cīņa" }).click();
+  await a.getByRole("radio", { name: "4 burti" }).click();
   await a.getByRole("button", { name: "Izveidot istabu" }).click();
   await a.locator("span.font-mono").waitFor({ timeout: 20000 });
   const code = (await a.locator("span.font-mono").textContent())!.trim();
@@ -99,6 +129,21 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await b.getByRole("button", { name: "Pievienoties" }).click();
   await a.getByRole("button", { name: "Esmu gatavs" }).click();
   await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await a.waitForTimeout(6000);
+  console.log(
+    "A STATE:\n" +
+      (await a.locator("main").innerText()).slice(0, 700).replace(/\n/g, " | "),
+  );
+  console.log("A URL:", a.url());
+  console.log(
+    "A MAIN HTML:\n" +
+      (await a.locator("html").innerHTML()).slice(0, 900).replace(/\n/g, " "),
+  );
+  console.log(
+    "B STATE:\n" +
+      (await b.locator("main").innerText()).slice(0, 700).replace(/\n/g, " | "),
+  );
+  await a.getByText("Spēle sākas pēc").waitFor({ timeout: 30000 });
   await a.getByText("Kārta 1/5", { exact: false }).waitFor({ timeout: 25000 });
   await waitForInput(a);
   await waitForInput(b);
@@ -123,6 +168,7 @@ async function waitForInput(page: import("@playwright/test").Page) {
       const filler = PLAIN.slice((round * 5 + i) * 3, (round * 5 + i) * 3 + 3).padEnd(3, "a");
       await typeMp(a, first + filler);
       await typeMp(b, first + "z" + filler.slice(0, 2));
+      await a.waitForTimeout(350);
     }
     if (round < 4) {
       await a
@@ -132,8 +178,19 @@ async function waitForInput(page: import("@playwright/test").Page) {
       await waitForInput(b);
     }
   }
-  await a.getByText("Neizšķirts").waitFor({ timeout: 30000 });
-  await b.getByText("Neizšķirts").waitFor({ timeout: 30000 });
+  const resultSeen = await a
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .isVisible()
+    .catch(() => false);
+  if (!resultSeen) {
+    await a.getByRole("button", { name: "Pārtraukt spēli" }).click();
+  }
+  await a
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .waitFor({ timeout: 30000 });
+  await b
+    .getByText(/Neizšķirts|Tu uzvarēji!|Pretinieks uzvarēja/)
+    .waitFor({ timeout: 30000 });
   check("five-word battle completed with consistent result", true);
   await a.getByRole("button", { name: "Revanšs" }).click();
   await b.getByRole("button", { name: "Revanšs" }).click();

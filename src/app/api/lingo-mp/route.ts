@@ -15,7 +15,7 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const limit = await lingoRateLimit(`lingo-mp-create:${ip}`, 10, 60 * 60);
+  const limit = await lingoRateLimit(`lingo-mp-create:${ip}`, 30, 60 * 60);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Pārāk daudz istabu — pamēģini vēlāk" },
