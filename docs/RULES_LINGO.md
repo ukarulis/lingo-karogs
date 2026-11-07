@@ -82,10 +82,20 @@ minējumus; ātri atkārtota Enter spiešana nevar iesniegt vairākus minējumus
 
 ## Garumi
 
-Dzinējs atbalsta 4–7 burtu vārdus (`length`, `maxAttempts`, `guessPolicy`,
-`revealFirstLetter`, `carryConfirmedLetters` ir katra raunda konfigurācija).
-Web saskarnē šobrīd ir pieejams 5 burtu garums; 4/6/7 burtu izvēles nāk
-B fāzē.
+Dzinējs un saskarne atbalsta 4, 5, 6 un 7 burtu vārdus. Katram garumam ir
+atsevišķs, validēts vārdu kopums (mērķvārdi, biežie, minējumi) ar
+kvalitātes vārtiem; garums bez derīga kopuma netiek rādīts. Katra raunda
+konfigurācija (`length`, `maxAttempts`, `guessPolicy`, `revealFirstLetter`,
+`carryConfirmedLetters`) kopā ar `language` un `ruleSet` tiek saglabāta
+pašā raundā.
+
+- Neierobežotajā spēlē var izvēlēties 4/5/6/7 burtus vai **Nejauši**
+  (garums mainās katrā kārtā; nejaušības režīma rezultāti tiek ieskaitīti
+  attiecīgā garuma statistikas spainī).
+- Katram garumam ir sava, atsevišķi saglabāta sesija — pārslēdzoties
+  garumiem, nepabeigtās spēles nepazūd.
+- Dienas vārds paliek oficiālais 5 burtu izaicinājums; Klasiskais Lingo
+  paliek uz 5 burtiem ar vārdnīcas minējumiem.
 
 ## Saglabāšana un migrācija
 
@@ -97,6 +107,12 @@ B fāzē.
   bezgalīgas ielādes un neaiztiekot statistiku.
 - Vēsturiskie dublikātu minējumi saglabājumos netiek pārrakstīti, bet jauni
   dublikāti tiek bloķēti.
+- Neierobežotās spēles sesijas tiek glabātas ar atslēgu
+  `lingoEndless:{valoda}:{garums}`; vecā `lingoEndless` piecu burtu sesija
+  tiek vienreiz pārcelta uz `lingoEndless:lv:5`.
+- Statistika (v2) glabā neierobežotās spēles rezultātus atsevišķi pēc
+  valodas un garuma; Dienas rezultāti vairs netiek jaukti neierobežotās
+  spēles skaitītājos.
 
 ## Vēsturiskais pret oriģinālo
 
@@ -105,7 +121,8 @@ B fāzē.
 | 5 burtu vārds, pirmais burts atklāts | Vēsturiskais Lingo |
 | 5 mēģinājumi | Vēsturiskais Lingo |
 | Sarkans = pareizi, dzeltens = citā vietā | Vēsturiskā (Tilde) palete |
-| Zaļš/dzeltens/pelēks noklusējuma shēma | Mūsu modernā izvēle (maināma) |
+| Zaļš (pareizi) / dzeltens (citā vietā) / sarkans (nav) noklusējuma shēma | Mūsu modernā izvēle (maināma) |
+| 4, 6 un 7 burtu garumi | Mūsu paplašinājums (5 burti ir vēsturiskais noklusējums) |
 | Divu gājienu vērtēšana ar atkārtotiem burtiem | Mūsu precizējums |
 | Brīvais minējums Dienas / Neierobežotajā spēlē | Mūsu oriģināls produkta lēmums |
 | Vārdnīcas minējums Klasiskajā spēlē | Vēsturiskais noteikums |
