@@ -138,8 +138,21 @@ test.describe("Lingo online multiplayer", () => {
     for (let round = 0; round < BATTLE_WORDS.length; round++) {
       const word = BATTLE_WORDS[round];
       await typeMpWord(a, word);
+      // The board shows only the current round's own guesses.
+      await expect(
+        a
+          .getByRole("group", { name: "Spēles laukums" })
+          .getByLabel(/pareizi|citā vietā|nav vārdā/),
+      ).toHaveCount(word.length, { timeout: 15000 });
       await typeMpWord(b, `${word[0]}bcd`);
+      await expect(
+        b
+          .getByRole("group", { name: "Spēles laukums" })
+          .getByLabel(/pareizi|citā vietā|nav vārdā/),
+      ).toHaveCount(word.length, { timeout: 15000 });
       await typeMpWord(b, word);
+      // B's final guess may resolve the round and switch to the next one;
+      // progress is verified via the round indicator below.
       if (round < BATTLE_WORDS.length - 1) {
         // Between-round transition is server-controlled (5s) plus a poll.
         await expect(
@@ -209,6 +222,22 @@ test.describe("Lingo online multiplayer", () => {
       timeout: 25000,
     });
     await waitForInput(b);
+    // AltGr diacritic input works in the multiplayer board too.
+    await b.evaluate(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ā",
+          code: "KeyA",
+          ctrlKey: true,
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+    await expect(
+      b.getByRole("group", { name: "Spēles laukums" }).getByLabel("ā"),
+    ).toBeVisible();
+    await b.getByRole("button", { name: /Dzēst burtu/ }).click();
     await typeMpWord(b, "abcb");
     await expect(
       b
@@ -264,12 +293,12 @@ test.describe("Lingo online multiplayer", () => {
       };
       const first = await action("e2e-ready-idempotent");
       const second = await action("e2e-ready-idempotent");
-      const forged = await fetch(
-        `/api/lingo-mp/${session.matchId}?token=forged-token-value`,
-      );
-      const secretProbe = await fetch(
-        `/api/lingo-mp/${session.matchId}?token=${session.playerToken}`,
-      );
+      const forged = await fetch(`/api/lingo-mp/${session.matchId}`, {
+        headers: { "x-player-token": "forged-token-value" },
+      });
+      const secretProbe = await fetch(`/api/lingo-mp/${session.matchId}`, {
+        headers: { "x-player-token": session.playerToken ?? "" },
+      });
       const viewText = await secretProbe.text();
       return {
         first,

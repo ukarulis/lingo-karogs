@@ -146,6 +146,7 @@ export function LingoOnboarding({
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
             Dienas un neierobežotajā spēlē der jebkura burtu kombinācija;
             klasiskajā režīmā minējumam jābūt vārdnīcā esošam vārdam.
+            Neierobežotajā spēlē vari izvēlēties 4–7 burtu vārdus.
           </p>
         </div>
       ) : step === 1 ? (

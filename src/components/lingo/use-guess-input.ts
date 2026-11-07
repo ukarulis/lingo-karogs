@@ -93,6 +93,9 @@ export function useGuessInput({
       if (!enabledRef.current) return;
       const ch = pack.normalizeInput(raw);
       if (ch.length === 0) return;
+      // Only single graphemes may enter a cell (rejects dead-key markers,
+      // pasted strings routed through append, and multi-codepoint junk).
+      if (pack.segmentWord(ch).length !== 1) return;
       const prev = normalizeLength(bufferRef.current, length);
       const fixed = fixedRef.current;
       let cursor = Math.min(cursorRef.current, length);
@@ -169,10 +172,23 @@ export function useGuessInput({
     return accepted;
   }, [length, onSubmit]);
 
+  /**
+   * Explicitly clear the editable letters (used by asynchronous flows that
+   * confirm acceptance from an authoritative server response).
+   */
+  const reset = useCallback(() => {
+    const next = normalizeLength(
+      fixedRef.current.map((f) => f ?? null),
+      length,
+    );
+    cursorRef.current = 0;
+    bufferRef.current = next;
+    setBuffer(next);
+  }, [length]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!enabledRef.current) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -180,6 +196,16 @@ export function useGuessInput({
           target.tagName === "TEXTAREA" ||
           target.isContentEditable)
       ) {
+        return;
+      }
+      // Ctrl/Meta shortcuts (Ctrl+A, Cmd+R, ...) must keep working, but
+      // Windows AltGr produces characters while holding Ctrl+Alt: those
+      // events are legitimate printable input and must be accepted.
+      const altGraph =
+        typeof e.getModifierState === "function" &&
+        e.getModifierState("AltGraph");
+      const altGrCombo = e.ctrlKey && e.altKey && !e.metaKey;
+      if ((e.metaKey || e.ctrlKey || e.altKey) && !altGraph && !altGrCombo) {
         return;
       }
       if (e.key === "Enter") {
@@ -200,5 +226,5 @@ export function useGuessInput({
   }, [append, backspace, submit, pack]);
 
   const full = buffer.every((c) => c !== null) && buffer.length === length;
-  return { buffer, full, shakeTick, append, backspace, submit };
+  return { buffer, full, shakeTick, append, backspace, submit, reset };
 }

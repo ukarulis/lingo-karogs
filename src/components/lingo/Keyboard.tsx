@@ -24,6 +24,14 @@ export const Keyboard = memo(function Keyboard({
 }) {
   const rows = layout?.rows ?? LATVIAN_KEYBOARD_ROWS;
   const compactKeys = new Set(layout?.compactKeys ?? []);
+  const rowClass = (row: readonly (string | "enter" | "back")[]) => {
+    const hasAction = row.some((k) => k === "enter" || k === "back");
+    if (hasAction && row.length === 8) {
+      return "grid-cols-[1.5fr_repeat(6,1fr)_1.5fr]";
+    }
+    if (row.length === 11) return "grid-cols-11";
+    return "grid-flow-col auto-cols-fr";
+  };
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-1.5">
       {rows.map((row, r) => (
@@ -31,15 +39,7 @@ export const Keyboard = memo(function Keyboard({
           key={r}
           className={cn(
             "grid w-full gap-1 sm:gap-1.5",
-            r === 0 && rows.length === 4
-              ? "grid-cols-11"
-              : r === 1 && rows.length === 4
-                ? "grid-cols-10"
-                : r === 2 && rows.length === 4
-                  ? "grid-cols-9 px-3.5"
-                  : r === rows.length - 1 && rows.length === 4
-                    ? "grid-cols-[1.5fr_repeat(7,1fr)_1.5fr]"
-                    : "grid-flow-col auto-cols-fr",
+            rowClass(row),
           )}
         >
           {row.map((key) => {

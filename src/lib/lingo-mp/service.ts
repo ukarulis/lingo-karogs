@@ -1,5 +1,6 @@
 // Server-side Lingo multiplayer orchestration: room lifecycle, authorization,
 // idempotent actions and authoritative persistence. Runs only on the server.
+// All related writes happen inside a store transaction.
 
 import crypto from "node:crypto";
 import { loadPool } from "@/lib/lingo/pools";
@@ -32,14 +33,29 @@ import {
   reconcile,
   validateConfigForServer,
 } from "./engine";
+import { mpError, mpLog } from "./log";
 
 export { LingoMpError } from "./engine";
 
+/**
+ * Hash a player token with a server secret. Production fails closed when the
+ * secret is missing or too short instead of silently using a fallback.
+ */
 export function hashLingoToken(token: string): string {
-  const salt = process.env.PLAYER_TOKEN_SALT ?? "lingo-karogs-v1";
+  const salt = process.env.PLAYER_TOKEN_SALT;
+  if (process.env.NODE_ENV === "production") {
+    if (!salt || salt.length < 16) {
+      throw new LingoMpError(
+        503,
+        "not-configured",
+        "Tiešsaistes spēle nav konfigurēta (PLAYER_TOKEN_SALT)",
+      );
+    }
+  }
+  const effective = salt && salt.length >= 16 ? salt : "lingo-karogs-dev-salt";
   return crypto
     .createHash("sha256")
-    .update(`${salt}:${token}`)
+    .update(`${effective}:${token}`)
     .digest("hex");
 }
 
@@ -98,7 +114,11 @@ export class LingoMultiplayerService {
       },
       Date.now(),
     );
-    await this.persistNewAggregate(agg);
+    await this.store.transaction(async (tx) => {
+      await tx.createMatch(agg.match);
+      for (const round of agg.rounds) await tx.upsertRound(round);
+    });
+    mpLog("match-created", { matchId: id, code, format: config.format });
     return {
       matchId: id,
       code,
@@ -116,58 +136,70 @@ export class LingoMultiplayerService {
     const nickname = validateLingoNickname(params.nickname);
     const tokenHash = hashLingoToken(params.playerToken);
     for (let attempt = 0; attempt < 3; attempt++) {
-      const agg = await this.loadAggregateByCode(params.code);
-      if (!agg) {
+      const joined = await this.store.transaction(async (tx) => {
+        const match = await tx.getMatchByCode(params.code);
+        if (!match) return null;
+        const known =
+          match.hostTokenHash === tokenHash
+            ? "host"
+            : match.guestTokenHash === tokenHash
+              ? "guest"
+              : null;
+        if (known) {
+          return { match, slot: known as "host" | "guest" };
+        }
+        if (match.status !== "waiting" || match.guestTokenHash) {
+          throw new LingoMpError(409, "room-full", "Istaba ir pilna");
+        }
+        const now = Date.now();
+        const updated = await tx.updateIfVersion(match.id, match.version, {
+          version: match.version + 1,
+          guestTokenHash: tokenHash,
+          guestNickname: nickname,
+          guestGuestHash: params.guestHash,
+          status: "ready",
+          lastActionAt: new Date(now).toISOString(),
+          updatedAt: new Date(now).toISOString(),
+        });
+        return updated
+          ? { match: updated, slot: "guest" as const }
+          : { conflict: true as const };
+      });
+      if (!joined) {
         throw new LingoMpError(404, "room-not-found", "Istaba nav atrasta");
       }
-      const { match } = agg;
-      const known =
-        match.hostTokenHash === tokenHash
-          ? "host"
-          : match.guestTokenHash === tokenHash
-            ? "guest"
-            : null;
-      if (known) {
-        return {
-          matchId: match.id,
-          code: match.code,
-          playerToken: params.playerToken,
-          slot: known,
-        };
-      }
-      if (match.status !== "waiting" || match.guestTokenHash) {
-        throw new LingoMpError(409, "room-full", "Istaba ir pilna");
-      }
-      const now = Date.now();
-      const updated = await this.store.updateIfVersion(match.id, match.version, {
-        version: match.version + 1,
-        guestTokenHash: tokenHash,
-        guestNickname: nickname,
-        guestGuestHash: params.guestHash,
-        status: "ready",
-        lastActionAt: new Date(now).toISOString(),
-        updatedAt: new Date(now).toISOString(),
+      if ("conflict" in joined) continue;
+      mpLog("match-joined", {
+        matchId: joined.match.id,
+        code: joined.match.code,
+        slot: joined.slot,
       });
-      if (!updated) continue;
       return {
-        matchId: updated.id,
-        code: updated.code,
+        matchId: joined.match.id,
+        code: joined.match.code,
         playerToken: params.playerToken,
-        slot: "guest",
+        slot: joined.slot,
       };
     }
     throw new LingoMpError(409, "conflict", "Mēģini vēlreiz");
   }
 
   async getView(matchId: string, playerToken: string): Promise<LingoMpView> {
-    const agg = await this.loadAggregate(matchId);
-    if (!agg) {
-      throw new LingoMpError(404, "room-not-found", "Istaba nav atrasta");
+    const tokenHash = hashLingoToken(playerToken);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const view = await this.store.transaction(async (tx) => {
+        const agg = await this.loadAggregateFrom(tx, matchId);
+        if (!agg) {
+          throw new LingoMpError(404, "room-not-found", "Istaba nav atrasta");
+        }
+        const slot = authorizeSlot(agg.match, tokenHash);
+        const now = Date.now();
+        const next = await this.persistReconciledVia(tx, agg, now);
+        return buildView(next, slot, now);
+      });
+      return view;
     }
-    const slot = authorizeSlot(agg.match, hashLingoToken(playerToken));
-    const now = Date.now();
-    const next = await this.persistReconciled(agg, now);
-    return buildView(next, slot, now);
+    throw new LingoMpError(409, "conflict", "Mēģini vēlreiz");
   }
 
   async action(
@@ -177,37 +209,60 @@ export class LingoMultiplayerService {
   ): Promise<LingoMpActionResponse> {
     const tokenHash = hashLingoToken(playerToken);
     for (let attempt = 0; attempt < 4; attempt++) {
-      const agg = await this.loadAggregate(matchId);
-      if (!agg) {
-        return { ok: false, code: "room-not-found", error: "Istaba nav atrasta" };
+      try {
+        const outcome = await this.store.transaction(async (tx) => {
+          const agg = await this.loadAggregateFrom(tx, matchId);
+          if (!agg) {
+            return { kind: "missing" as const };
+          }
+          const slot = authorizeSlot(agg.match, tokenHash);
+          const now = Date.now();
+          // Idempotency: a repeated action returns the current state.
+          if (agg.match.lastActionIds.includes(action.actionId)) {
+            const next = await this.persistReconciledVia(tx, agg, now);
+            return {
+              kind: "view" as const,
+              view: buildView(next, slot, now),
+            };
+          }
+          let next = reconcile(agg, now);
+          const applied = applyAction(next, slot, action, now);
+          next = reconcile(applied, now);
+          if (
+            action.type === "rematch" &&
+            next.match.status === "finished" &&
+            next.match.rematchRequestedHost &&
+            next.match.rematchRequestedGuest &&
+            !next.match.rematchWithCode
+          ) {
+            next = await this.createRematchVia(tx, next, now);
+          }
+          const saved = await this.saveAggregateVia(tx, agg, next);
+          if (!saved) return { kind: "conflict" as const };
+          await this.maybeRecordResultVia(tx, saved);
+          const final = await this.persistReconciledVia(tx, saved, now);
+          return {
+            kind: "done" as const,
+            view: buildView(final, slot, now),
+          };
+        });
+        if (outcome.kind === "conflict") continue;
+        if (outcome.kind === "missing") {
+          return { ok: false, code: "room-not-found", error: "Istaba nav atrasta" };
+        }
+        if (outcome.kind === "done") {
+          mpLog("action-applied", {
+            matchId,
+            actionType: action.type,
+            actionId: action.actionId.slice(0, 8),
+          });
+        }
+        return { ok: true, view: outcome.view };
+      } catch (error) {
+        if (error instanceof LingoMpError) throw error;
+        mpError("action-failed", error, { matchId, actionType: action.type });
+        return { ok: false, code: "internal", error: "Darbība neizdevās" };
       }
-      const slot = authorizeSlot(agg.match, tokenHash);
-      // Idempotency: a repeated action returns the current state untouched.
-      if (agg.match.lastActionIds.includes(action.actionId)) {
-        const next = await this.persistReconciled(agg, Date.now());
-        return { ok: true, view: buildView(next, slot, Date.now()) };
-      }
-      const now = Date.now();
-      let next = reconcile(agg, now);
-      const applied = applyAction(next, slot, action, now);
-      next = reconcile(applied, now);
-
-      // Both players accepted the rematch: create the new match.
-      if (
-        action.type === "rematch" &&
-        next.match.status === "finished" &&
-        next.match.rematchRequestedHost &&
-        next.match.rematchRequestedGuest &&
-        !next.match.rematchWithCode
-      ) {
-        next = await this.createRematch(next, now);
-      }
-
-      const saved = await this.saveAggregate(agg, next);
-      if (!saved) continue;
-      await this.maybeRecordResult(saved);
-      const final = await this.persistReconciled(saved, now);
-      return { ok: true, view: buildView(final, slot, now) };
     }
     return {
       ok: false,
@@ -216,7 +271,8 @@ export class LingoMultiplayerService {
     };
   }
 
-  private async createRematch(
+  private async createRematchVia(
+    tx: LingoMpStore,
     agg: MatchAggregate,
     nowMs: number,
   ): Promise<MatchAggregate> {
@@ -247,14 +303,13 @@ export class LingoMultiplayerService {
       nowMs,
       old.id,
     );
-    // The guest slot is pre-filled; both players ready up again.
     rematch.match.status = "ready";
     rematch.match.guestTokenHash = old.guestTokenHash;
     rematch.match.guestNickname = old.guestNickname;
     rematch.match.guestGuestHash = old.guestGuestHash;
-    rematch.match.hostReady = false;
-    rematch.match.guestReady = false;
-    await this.persistNewAggregate(rematch);
+    await tx.createMatch(rematch.match);
+    for (const round of rematch.rounds) await tx.upsertRound(round);
+    mpLog("rematch-created", { matchId: id, code, rematchOf: old.id });
     return {
       ...agg,
       match: { ...agg.match, rematchWithCode: code },
@@ -267,7 +322,6 @@ export class LingoMultiplayerService {
     avoid: ReadonlySet<string>,
   ): string[] {
     if (process.env.NEXT_PUBLIC_E2E) {
-      // Deterministic target selection for automated browser tests.
       const fresh = targets.filter((t) => !avoid.has(t));
       return (fresh.length >= count ? fresh : targets).slice(0, count);
     }
@@ -296,62 +350,53 @@ export class LingoMultiplayerService {
     throw new LingoMpError(500, "code-generation", "Neizdevās izveidot kodu");
   }
 
-  private async loadAggregate(id: string): Promise<MatchAggregate | null> {
-    const match = await this.store.getMatch(id);
+  private async loadAggregateFrom(
+    store: LingoMpStore,
+    id: string,
+  ): Promise<MatchAggregate | null> {
+    const match = await store.getMatch(id);
     if (!match) return null;
-    const rounds = await this.store.getRounds(id);
-    const submissions = await this.store.getSubmissions(id);
-    const events = await this.store.getEvents(id);
+    const rounds = await store.getRounds(id);
+    const submissions = await store.getSubmissions(id);
+    const events = await store.getEvents(id);
     return { match, rounds, submissions, events };
   }
 
-  private async loadAggregateByCode(
-    code: string,
-  ): Promise<MatchAggregate | null> {
-    const match = await this.store.getMatchByCode(code);
-    if (!match) return null;
-    return this.loadAggregate(match.id);
-  }
-
-  private async persistNewAggregate(agg: MatchAggregate): Promise<void> {
-    await this.store.createMatch(agg.match);
-  }
-
-  /**
-   * Persist time-driven changes (reconciliation). Returns the authoritative
-   * aggregate; on a version race it returns the freshly reloaded aggregate.
-   */
-  private async persistReconciled(
+  private async persistReconciledVia(
+    tx: LingoMpStore,
     agg: MatchAggregate,
     nowMs: number,
   ): Promise<MatchAggregate> {
     const next = reconcile(agg, nowMs);
-    if (matchUnchanged(agg.match, next.match) && roundsUnchanged(agg.rounds, next.rounds)) {
+    if (
+      matchUnchanged(agg.match, next.match) &&
+      roundsUnchanged(agg.rounds, next.rounds)
+    ) {
       return next;
     }
-    const saved = await this.saveAggregate(agg, next);
-    return saved ?? (await this.loadAggregate(agg.match.id)) ?? next;
+    const saved = await this.saveAggregateVia(tx, agg, next);
+    return saved ?? (await this.loadAggregateFrom(tx, agg.match.id)) ?? next;
   }
 
-  private async saveAggregate(
+  private async saveAggregateVia(
+    store: LingoMpStore,
     prev: MatchAggregate,
     next: MatchAggregate,
   ): Promise<MatchAggregate | null> {
     for (const round of next.rounds) {
-      await this.store.upsertRound(round);
+      await store.upsertRound(round);
     }
     for (const s of next.submissions.slice(prev.submissions.length)) {
-      await this.store.insertSubmission(s);
+      await store.insertSubmission(s);
     }
     for (const e of next.events.slice(prev.events.length)) {
-      await this.store.insertEvent(e);
+      await store.insertEvent(e);
     }
     const patch = matchPatch(prev.match, next.match);
     if (Object.keys(patch).length === 0) {
-      // Nothing changed on the match row itself.
       return { ...next, match: prev.match };
     }
-    const updated = await this.store.updateIfVersion(
+    const updated = await store.updateIfVersion(
       next.match.id,
       prev.match.version,
       { ...patch, version: prev.match.version + 1 },
@@ -360,18 +405,21 @@ export class LingoMultiplayerService {
     return { ...next, match: updated };
   }
 
-  private async maybeRecordResult(agg: MatchAggregate): Promise<void> {
+  private async maybeRecordResultVia(
+    store: LingoMpStore,
+    agg: MatchAggregate,
+  ): Promise<void> {
     if (agg.match.status !== "finished" || !agg.match.resultJson) return;
     const result: LingoMpDbResult = {
       matchId: agg.match.id,
       resultJson: agg.match.resultJson,
       createdAt: agg.match.updatedAt,
     };
-    try {
-      await this.store.insertResult(result);
-    } catch {
-      // Duplicate/ignored inserts must never fail the action.
-    }
+    await store.insertResult(result);
+    mpLog("result-finalized", {
+      matchId: agg.match.id,
+      winner: agg.match.winner ?? "draw",
+    });
   }
 }
 

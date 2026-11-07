@@ -25,7 +25,7 @@ export function segmentWord(word: string): string[] {
 // size on narrow phones; the full Latvian alphabet stays accessible.
 export const LATVIAN_KEYBOARD_ROWS = [
   ["ā", "ē", "ī", "ū", "ķ", "ļ", "ņ", "ģ", "š", "ž", "č"],
-  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+  ["e", "r", "t", "u", "i", "o", "p"],
   ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
   ["enter", "z", "c", "v", "b", "n", "m", "back"],
 ] as const;

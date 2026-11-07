@@ -301,4 +301,87 @@ test.describe("Lingo", () => {
     await expect(page.getByText("Pareizā vietā")).toBeVisible();
     await expect(page.getByText("Nav vārdā")).toBeVisible();
   });
+
+  test("physical AltGr and dead-key input produces Latvian letters", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    // Windows AltGr arrives as Ctrl+Alt+<key>; the handler must accept it.
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ā",
+          code: "KeyA",
+          ctrlKey: true,
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+    });
+    await page.keyboard.type("bols");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "Vārds atminēts! 🎉" }),
+    ).toBeVisible();
+  });
+
+  test("Ctrl shortcuts and foreign letters are never typed", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    const board = page.getByRole("group", { name: "Spēles laukums" });
+    const empties = board.getByLabel("Tukšs lauciņš");
+    await expect(empties).toHaveCount(24);
+    await page.keyboard.press("Control+KeyA");
+    await page.keyboard.press("Control+KeyC");
+    await page.keyboard.type("qwx"); // not in the Latvian alphabet
+    await expect(empties).toHaveCount(24);
+    // A dead key followed by the composed letter inserts exactly once.
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Dead", bubbles: true }),
+      );
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ē", bubbles: true }),
+      );
+    });
+    await expect(board.getByLabel("ē", { exact: true })).toBeVisible();
+    await expect(empties).toHaveCount(23);
+    await page.getByRole("button", { name: /Dzēst burtu/ }).click();
+    await expect(empties).toHaveCount(24);
+  });
+
+  test("decomposed input normalizes into a single cell", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    const board = page.getByRole("group", { name: "Spēles laukums" });
+    // "i" + combining macron must become one ī grapheme (ā would match the
+    // already locked hint and be consumed, not inserted).
+    await page.evaluate(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "i\u0304", bubbles: true }),
+      );
+    });
+    await expect(board.getByLabel("ī", { exact: true })).toBeVisible();
+    await expect(board.getByLabel("Tukšs lauciņš")).toHaveCount(23);
+  });
+
+  test("every on-screen diacritic key inserts its letter", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    const board = page.getByRole("group", { name: "Spēles laukums" });
+    const diacritics = ["ā", "ē", "ī", "ū", "ķ", "ļ", "ņ", "ģ", "š", "ž", "č"];
+    for (const letter of diacritics) {
+      // ā is already the locked hint; the others insert one at a time.
+      await page.getByRole("button", { name: `Burts ${letter}` }).click();
+      if (letter !== "ā") {
+        await expect(
+          board.getByLabel(letter, { exact: true }),
+        ).toBeVisible();
+        await page.getByRole("button", { name: /Dzēst burtu/ }).click();
+      }
+    }
+    // The layout never exposes letters outside the Latvian alphabet.
+    for (const foreign of ["q", "w", "x", "y"]) {
+      await expect(page.getByRole("button", { name: `Burts ${foreign}` })).toHaveCount(0);
+    }
+  });
 });

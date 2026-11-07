@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getLingoMpStore } from "@/lib/lingo-mp/factory";
+import { ensureLingoMpStore, lingoRateLimit } from "@/lib/lingo-mp/factory";
 import { LingoMultiplayerService, LingoMpError } from "@/lib/lingo-mp/service";
-import { rateLimit } from "@/lib/multiplayer/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -15,14 +14,14 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const limit = rateLimit(`lingo-mp-join:${ip}`, 20, 60 * 60 * 1000);
+  const limit = await lingoRateLimit(`lingo-mp-join:${ip}`, 20, 60 * 60);
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Pārāk daudz mēģinājumu — pamēģini vēlāk" },
       { status: 429 },
     );
   }
-  const store = getLingoMpStore();
+  const store = await ensureLingoMpStore();
   if (!store) {
     return NextResponse.json(
       { error: "Tiešsaistes spēle pašlaik nav pieejama" },

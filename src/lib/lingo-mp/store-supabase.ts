@@ -55,6 +55,7 @@ const rowToMatch = (row: Record<string, unknown>): LingoMpDbMatch => ({
 
 export class SupabaseLingoMpStore implements LingoMpStore {
   private client: SupabaseClient;
+  private rateBuckets = new Map<string, number[]>();
 
   constructor() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -341,5 +342,57 @@ export class SupabaseLingoMpStore implements LingoMpStore {
       { onConflict: "match_id" },
     );
     if (error) throw error;
+  }
+
+  async transaction<T>(fn: (tx: LingoMpStore) => Promise<T>): Promise<T> {
+    // Supabase's REST API cannot wrap multiple statements in one SQL
+    // transaction; writes are applied sequentially with idempotent keys.
+    // Prefer the dedicated PostgreSQL adapter for production use.
+    return fn(this);
+  }
+
+  async rateLimit(
+    bucket: string,
+    max: number,
+    windowSec: number,
+  ): Promise<{ allowed: boolean; retryAfterSec: number }> {
+    const now = Date.now();
+    const windowMs = windowSec * 1000;
+    let hits = this.rateBuckets.get(bucket);
+    if (!hits) {
+      hits = [];
+      this.rateBuckets.set(bucket, hits);
+    }
+    const fresh = hits.filter((t) => now - t < windowMs);
+    if (fresh.length >= max) {
+      this.rateBuckets.set(bucket, fresh);
+      return {
+        allowed: false,
+        retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - fresh[0])) / 1000)),
+      };
+    }
+    fresh.push(now);
+    this.rateBuckets.set(bucket, fresh);
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      const { error } = await this.client
+        .from("lingo_matches")
+        .select("id")
+        .limit(0);
+      return !error;
+    } catch {
+      return false;
+    }
+  }
+
+  async schemaVersion(): Promise<number> {
+    return 1;
+  }
+
+  async migrate(): Promise<void> {
+    // Migrations are applied out-of-band (SQL editor / db push).
   }
 }

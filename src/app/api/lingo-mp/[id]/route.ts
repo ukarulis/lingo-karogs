@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLingoMpStore } from "@/lib/lingo-mp/factory";
+import { ensureLingoMpStore } from "@/lib/lingo-mp/factory";
 import { LingoMultiplayerService, LingoMpError } from "@/lib/lingo-mp/service";
 
 export const runtime = "nodejs";
@@ -9,11 +9,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const token = req.nextUrl.searchParams.get("token");
+  // Player credentials travel in a header, never in URLs (query strings leak
+  // into logs, history and tracing).
+  const token = req.headers.get("x-player-token");
   if (!token) {
     return NextResponse.json({ error: "Trūkst identifikatora" }, { status: 400 });
   }
-  const store = getLingoMpStore();
+  const store = await ensureLingoMpStore();
   if (!store) {
     return NextResponse.json(
       { error: "Tiešsaistes spēle pašlaik nav pieejama" },

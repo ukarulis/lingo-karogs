@@ -39,6 +39,7 @@ import type { LingoMpView } from "@/lib/lingo-mp/types";
 import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/use-settings";
+import { cn } from "@/lib/utils";
 
 const LENGTHS = enabledLengths();
 const DEFAULT_LENGTH = LENGTHS.includes(5) ? "5" : String(LENGTHS[0] ?? 5);
@@ -97,6 +98,15 @@ function fixedForRound(view: LingoMpView): (string | null)[] {
   return fixed;
 }
 
+function guessLandedIn(view: LingoMpView, word: string): boolean {
+  return (
+    (view.currentRound?.yourGuesses ?? []).some((g) => g.word === word) ||
+    view.resolvedRounds.some((round) =>
+      round.yourGuesses.some((g) => g.word === word),
+    )
+  );
+}
+
 export function OnlineMode({
   palette,
 }: {
@@ -113,10 +123,15 @@ export function OnlineMode({
   const [session, setSession] = useState<LingoMpSession | null>(null);
   const [view, setView] = useState<LingoMpView | null>(null);
   const [busy, setBusy] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [clockOffset, setClockOffset] = useState(0);
   const [, setTick] = useState(0);
   const mountedRef = useRef(true);
+  const submittingRef = useRef(false);
+  const pendingGuessRef = useRef<{ actionId: string; word: string } | null>(
+    null,
+  );
 
   const now = useCallback(() => Date.now() + clockOffset, [clockOffset]);
 
@@ -253,6 +268,7 @@ export function OnlineMode({
       push(res.error ?? "Darbība neizdevās", "error");
       return null;
     }
+    if (type === "extend") push("+15 sekundes", "success");
     if (res.view) {
       setView(res.view);
       setClockOffset(Date.parse(res.view.serverNow) - Date.now());
@@ -261,18 +277,60 @@ export function OnlineMode({
   };
 
   const submitGuess = (word: string): boolean => {
-    void send("guess", word).then((next) => {
-      if (next) {
-        playSound(
-          next.currentRound?.yourOutcome === "solved" ? "win" : "flip",
-        );
+    if (!session || submittingRef.current) return false;
+    // A lost response is retried with the same action ID so the server can
+    // never apply the same guess twice.
+    const actionId =
+      pendingGuessRef.current?.word === word
+        ? pendingGuessRef.current.actionId
+        : crypto.randomUUID();
+    pendingGuessRef.current = { actionId, word };
+    submittingRef.current = true;
+    setSubmitting(true);
+    void (async () => {
+      let accepted = false;
+      try {
+        const res = await apiLingoMpAction(session.matchId, session.playerToken, {
+          actionId,
+          type: "guess",
+          payload: { word },
+        });
+        if (res.ok && res.view) {
+          setView(res.view);
+          setClockOffset(Date.parse(res.view.serverNow) - Date.now());
+          accepted = guessLandedIn(res.view, word);
+          if (accepted) {
+            pendingGuessRef.current = null;
+            // Only clear letters that still hold the accepted word; a late
+            // response must never wipe input typed for the next round.
+            if (buffer.join("") === word || buffer.every((c) => c === null)) {
+              reset();
+            }
+            playSound(
+              res.view.currentRound?.yourOutcome === "solved" ? "win" : "flip",
+            );
+          } else {
+            pendingGuessRef.current = null;
+            push(res.error ?? "Minējums netika pieņemts", "error");
+          }
+        } else {
+          pendingGuessRef.current = null;
+          push(res.error ?? "Minējums netika pieņemts", "error");
+        }
+      } catch {
+        // Network failure: the pending action ID is kept so a retry of the
+        // same word reuses it; polling reconciles the true state.
+        void poll();
+      } finally {
+        submittingRef.current = false;
+        setSubmitting(false);
       }
-    });
-    return true;
+    })();
+    return false;
   };
 
   const fixed = useMemo(() => (view ? fixedForRound(view) : []), [view]);
-  const { buffer, shakeTick, append, backspace, submit } = useGuessInput({
+  const { buffer, shakeTick, append, backspace, submit, reset } = useGuessInput({
     enabled:
       !!view &&
       view.status === "playing" &&
@@ -347,6 +405,25 @@ export function OnlineMode({
     }
     return out;
   }, [view]);
+
+  // Reconcile after a lost response: if the pending word now appears in the
+  // authoritative guess history, the submission actually landed.
+  useEffect(() => {
+    const pending = pendingGuessRef.current;
+    if (!pending || !view) return;
+    const landed = guessLandedIn(view, pending.word);
+    if (landed) {
+      pendingGuessRef.current = null;
+      setSubmitting(false);
+      submittingRef.current = false;
+      if (
+        buffer.join("") === pending.word ||
+        buffer.every((c) => c === null)
+      ) {
+        reset();
+      }
+    }
+  }, [view, reset, buffer]);
 
   // ---- form state ----
   if (!session) {
@@ -575,10 +652,25 @@ export function OnlineMode({
       {playing && round ? (
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-semibold text-stone-600 dark:text-stone-300">
-            <span className="inline-flex items-center gap-1.5">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 tabular-nums",
+                myDeadline &&
+                  remaining !== null &&
+                  remaining <= 15_000 &&
+                  round.yourOutcome === "playing"
+                  ? "font-black text-red-600 dark:text-red-400"
+                  : "",
+              )}
+            >
               <Timer className="size-4" aria-hidden />
               {myDeadline && remaining !== null ? fmtTime(remaining) : "…"}
             </span>
+            {submitting ? (
+              <span className="animate-pulse text-xs font-bold text-indigo-500">
+                Iesniedz…
+              </span>
+            ) : null}
             {view.extensionsPerMatch > 0 ? (
               <button
                 onClick={() => void send("extend")}
@@ -601,6 +693,11 @@ export function OnlineMode({
               mēģinājumi
             </span>
           </div>
+          {round.yourOutcome === "solved" && round.status === "active" ? (
+            <p className="mb-3 animate-pulse text-center text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              Vārds atminēts — gaidi pretinieku…
+            </p>
+          ) : null}
           {round.status === "pending" ? (
             <Card className="p-6 text-center">
               <p className="text-sm font-bold text-stone-500 dark:text-stone-400">

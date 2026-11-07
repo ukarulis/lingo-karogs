@@ -100,7 +100,7 @@ export function LingoApp() {
           ? "Tiešsaistes spēlēs ir spēkā tie paši noteikumi: brīvie minējumi, pārnešana un servera kontrolēts laiks."
           : mode === "arcade"
             ? "Klasiskajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam."
-            : "Brīvais minējums: der jebkura 5 burtu kombinācija — tai nav jābūt vārdnīcā."}
+            : "Brīvais minējums: der jebkura izvēlētā garuma burtu kombinācija — tai nav jābūt vārdnīcā."}
       </p>
       <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-stone-400 dark:text-stone-500">
         <Palette className="size-3.5" aria-hidden />

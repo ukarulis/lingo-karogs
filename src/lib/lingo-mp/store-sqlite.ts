@@ -25,6 +25,7 @@ const bool = (v: unknown): boolean => !!v;
 
 export class SqliteLingoMpStore implements LingoMpStore {
   private db: Database.Database;
+  private rateBuckets = new Map<string, number[]>();
 
   constructor(dbPath?: string) {
     this.db = new Database(dbPath ?? resolveDbPath());
@@ -119,7 +120,16 @@ export class SqliteLingoMpStore implements LingoMpStore {
       CREATE INDEX IF NOT EXISTS idx_lingo_rounds_match ON lingo_match_rounds(match_id);
       CREATE INDEX IF NOT EXISTS idx_lingo_subs_round ON lingo_round_submissions(round_id);
       CREATE INDEX IF NOT EXISTS idx_lingo_events_match ON lingo_match_events(match_id);
+      CREATE TABLE IF NOT EXISTS lingo_schema_versions (
+        version INTEGER PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      );
     `);
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO lingo_schema_versions (version, applied_at) VALUES (1, ?)",
+      )
+      .run(new Date().toISOString());
   }
 
   async createMatch(match: LingoMpDbMatch): Promise<LingoMpDbMatch> {
@@ -378,6 +388,67 @@ export class SqliteLingoMpStore implements LingoMpStore {
          VALUES (@matchId, @resultJson, @createdAt)`,
       )
       .run(result);
+  }
+
+  async transaction<T>(fn: (tx: LingoMpStore) => Promise<T>): Promise<T> {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = await fn(this);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (err) {
+      try {
+        this.db.exec("ROLLBACK");
+      } catch {
+        /* already rolled back */
+      }
+      throw err;
+    }
+  }
+
+  async rateLimit(
+    bucket: string,
+    max: number,
+    windowSec: number,
+  ): Promise<{ allowed: boolean; retryAfterSec: number }> {
+    const now = Date.now();
+    const windowMs = windowSec * 1000;
+    let hits = this.rateBuckets.get(bucket);
+    if (!hits) {
+      hits = [];
+      this.rateBuckets.set(bucket, hits);
+    }
+    const fresh = hits.filter((t) => now - t < windowMs);
+    if (fresh.length >= max) {
+      this.rateBuckets.set(bucket, fresh);
+      return {
+        allowed: false,
+        retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - fresh[0])) / 1000)),
+      };
+    }
+    fresh.push(now);
+    this.rateBuckets.set(bucket, fresh);
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      this.db.prepare("SELECT 1").get();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async schemaVersion(): Promise<number> {
+    const row = this.db
+      .prepare("SELECT MAX(version) AS v FROM lingo_schema_versions")
+      .get() as { v: number | null };
+    return row.v ?? 0;
+  }
+
+  async migrate(): Promise<void> {
+    // The constructor applies the idempotent schema and records version 1.
   }
 
   private rowToMatch(row: Record<string, unknown>): LingoMpDbMatch {

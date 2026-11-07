@@ -126,10 +126,10 @@ export async function apiLingoMpView(
   matchId: string,
   playerToken: string,
 ): Promise<LingoMpView> {
-  const res = await fetch(
-    `/api/lingo-mp/${matchId}?token=${encodeURIComponent(playerToken)}`,
-    { cache: "no-store" },
-  );
+  const res = await fetch(`/api/lingo-mp/${matchId}`, {
+    cache: "no-store",
+    headers: { "x-player-token": playerToken },
+  });
   if (!res.ok) {
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(json.error ?? "Neizdevās ielādēt spēli");

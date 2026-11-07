@@ -56,6 +56,22 @@ describe("Latvian language pack", () => {
     expect(latvianPack.validateCharacters("whale")).toBe(false);
     expect(latvianPack.validateCharacters("qwert")).toBe(false);
   });
+
+  it("exposes only alphabet letters on the on-screen keyboard", () => {
+    const alphabet = new Set(latvianPack.alphabet);
+    for (const row of latvianPack.keyboardLayout.rows) {
+      for (const key of row) {
+        if (key === "enter" || key === "back") continue;
+        expect(alphabet.has(key), `key ${key} in alphabet`).toBe(true);
+      }
+    }
+    for (const letter of latvianPack.alphabet) {
+      expect(
+        latvianPack.keyboardLayout.rows.some((row) => row.includes(letter)),
+        `alphabet letter ${letter} reachable on keyboard`,
+      ).toBe(true);
+    }
+  });
 });
 
 describe("mock language pack proves engine extensibility", () => {

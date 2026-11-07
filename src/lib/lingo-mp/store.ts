@@ -112,6 +112,23 @@ export interface LingoMpStore {
   insertSubmission(submission: LingoMpDbSubmission): Promise<void>;
   insertEvent(event: LingoMpDbEvent): Promise<void>;
   insertResult(result: LingoMpDbResult): Promise<void>;
+  /**
+   * Run a set of related reads/writes atomically. Implementations must give
+   * the callback a store handle whose writes share the same transaction.
+   */
+  transaction<T>(fn: (tx: LingoMpStore) => Promise<T>): Promise<T>;
+  /** Durable rate limit (shared across instances where the backend allows). */
+  rateLimit(
+    bucket: string,
+    max: number,
+    windowSec: number,
+  ): Promise<{ allowed: boolean; retryAfterSec: number }>;
+  /** Cheap connectivity probe. */
+  ping(): Promise<boolean>;
+  /** Applied schema version. */
+  schemaVersion(): Promise<number>;
+  /** Apply pending migrations (idempotent). */
+  migrate(): Promise<void>;
   close?(): void;
 }
 

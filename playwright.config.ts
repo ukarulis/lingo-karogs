@@ -23,6 +23,7 @@ export default defineConfig({
       MULTIPLAYER_STORE: "sqlite",
       SQLITE_DB_PATH: ".data/e2e.db",
       LINGO_MP_STORE: "sqlite",
+      PLAYER_TOKEN_SALT: "e2e-test-salt-4b70b3a2c9d1",
       NEXT_PUBLIC_E2E: "1",
     },
   },
