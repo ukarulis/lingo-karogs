@@ -14,7 +14,11 @@ const Body = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const limit = await lingoRateLimit(`lingo-mp-join:${ip}`, 60, 60 * 60);
+  const limit = await lingoRateLimit(
+    `lingo-mp-join:${ip}`,
+    Number(process.env.LINGO_MP_JOIN_LIMIT ?? 60),
+    60 * 60,
+  );
   if (!limit.allowed) {
     return NextResponse.json(
       { error: "Pārāk daudz mēģinājumu — pamēģini vēlāk" },

@@ -58,6 +58,7 @@ async function readyBoth(
   await a.goto(BASE + "/lingo");
   await openOnline(a);
   await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
+  await a.getByRole("radio", { name: "4 burti" }).click();
   await a.getByRole("button", { name: "Izveidot istabu" }).click();
   try {
     await a.locator("span.font-mono").waitFor({ timeout: 20000 });
@@ -78,7 +79,9 @@ async function readyBoth(
   await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
   await b.getByRole("button", { name: "Pievienoties" }).click();
   await readyBoth(a, b);
-  await a.getByText("Spēle sākas pēc").waitFor({ timeout: 20000 });
+  await a
+    .getByRole("group", { name: "Spēles laukums" })
+    .waitFor({ timeout: 30000 });
   await a.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
   await b.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
   await waitForInput(a);
@@ -147,8 +150,6 @@ async function readyBoth(
   await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
   await b.getByRole("button", { name: "Pievienoties" }).click();
   await readyBoth(a, b);
-  await a.waitForTimeout(6000);
-  await a.getByText("Spēle sākas pēc").waitFor({ timeout: 30000 });
   await a.getByText("Kārta 1/5", { exact: false }).waitFor({ timeout: 25000 });
   await waitForInput(a);
   await waitForInput(b);
@@ -222,6 +223,7 @@ async function readyBoth(
   await a.goto(BASE + "/lingo");
   await openOnline(a);
   await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
+  await a.getByRole("radio", { name: "4 burti" }).click();
   await a.getByRole("button", { name: "Izveidot istabu" }).click();
   await a.locator("span.font-mono").waitFor({ timeout: 20000 });
   const code = (await a.locator("span.font-mono").textContent())!.trim();
