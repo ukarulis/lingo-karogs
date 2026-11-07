@@ -289,6 +289,36 @@ describe("five-word battle: extensions and progression", () => {
     expect(result.host.score).toBeGreaterThan(0);
     expect(result.guest.score).toBe(0);
   });
+
+  it("carries stable round identities and distinguishes consecutive rounds", () => {
+    let agg = startBattle(8_100_000_000_000);
+    const view1 = buildView(agg, "host", 8_100_000_000_500);
+    const firstId = view1.currentRound!.id;
+    expect(firstId).toBe(`${agg.match.id}:r0`);
+    // Same view twice -> same identity (stable across snapshots).
+    expect(buildView(agg, "host", 8_100_000_000_600).currentRound!.id).toBe(
+      firstId,
+    );
+    // Complete round 1 (both fail fast) and advance to round 2.
+    const start = Date.parse(agg.rounds[0].startedAt!);
+    for (let i = 0; i < 5; i++) {
+      const ch = "cdefg"[i];
+      agg = act(agg, "host", "guess", start + i * 100, `hs${i}`, {
+        word: `ab${ch}de`,
+      });
+      agg = act(agg, "guest", "guess", start + i * 100 + 10, `gs${i}`, {
+        word: `ab${ch}df`,
+      });
+    }
+    agg = reconcile(agg, start + 1000);
+    expect(agg.match.currentRoundIndex).toBe(1);
+    agg = reconcile(agg, Date.parse(agg.rounds[1].nextStartAt!) + 1);
+    const view2 = buildView(agg, "host", start + 100_000);
+    expect(view2.currentRound!.id).toBe(`${agg.match.id}:r1`);
+    expect(view2.currentRound!.id).not.toBe(firstId);
+    // The resolved first round keeps its own identity in history.
+    expect(view2.resolvedRounds[0].id).toBe(firstId);
+  });
 });
 
 describe("forfeit and unauthorized access", () => {

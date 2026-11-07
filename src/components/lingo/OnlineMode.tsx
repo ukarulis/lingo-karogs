@@ -99,13 +99,16 @@ function fixedForRound(view: LingoMpView): (string | null)[] {
   return fixed;
 }
 
-function guessLandedIn(view: LingoMpView, word: string): boolean {
-  return (
-    (view.currentRound?.yourGuesses ?? []).some((g) => g.word === word) ||
-    view.resolvedRounds.some((round) =>
-      round.yourGuesses.some((g) => g.word === word),
-    )
-  );
+function guessLandedIn(
+  view: LingoMpView,
+  roundId: string,
+  word: string,
+): boolean {
+  if (view.currentRound?.id === roundId) {
+    return view.currentRound.yourGuesses.some((g) => g.word === word);
+  }
+  const resolved = view.resolvedRounds.find((round) => round.id === roundId);
+  return resolved ? resolved.yourGuesses.some((g) => g.word === word) : false;
 }
 
 /** True when the editable buffer still shows exactly the accepted word,
@@ -141,12 +144,25 @@ export function OnlineMode({
   const [clockOffset, setClockOffset] = useState(0);
   const [, setTick] = useState(0);
   const mountedRef = useRef(true);
+  /** Monotonic guard: older snapshots never overwrite newer authoritative state. */
+  const lastVersionRef = useRef(-1);
+  const applyView = useCallback((next: LingoMpView) => {
+    if (next.version < lastVersionRef.current) return;
+    lastVersionRef.current = next.version;
+    setView(next);
+    setClockOffset(Date.parse(next.serverNow) - Date.now());
+  }, []);
   const submittingRef = useRef(false);
-  const pendingGuessRef = useRef<{ actionId: string; word: string } | null>(
+  const pendingGuessRef = useRef<{
+    actionId: string;
+    word: string;
+    roundId: string;
+  } | null>(null);
+  const queuedGuessRef = useRef<{ word: string; roundId: string } | null>(
     null,
   );
-  const queuedGuessRef = useRef<string | null>(null);
   const latestFixedRef = useRef<(string | null)[]>([]);
+  const currentRoundIdRef = useRef<string | null>(null);
 
   const now = useCallback(() => Date.now() + clockOffset, [clockOffset]);
 
@@ -155,12 +171,11 @@ export function OnlineMode({
     try {
       const next = await apiLingoMpView(session.matchId, session.playerToken);
       if (!mountedRef.current) return;
-      setView(next);
-      setClockOffset(Date.parse(next.serverNow) - Date.now());
+      applyView(next);
     } catch {
       // Transient polling failures keep the last authoritative state.
     }
-  }, [session]);
+  }, [session, applyView]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -182,7 +197,6 @@ export function OnlineMode({
       if (saved && (!room || saved.code === room)) setSession(saved);
     }
     void apiLingoMpStatus().then(setAvailable);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Polling cadence: faster during countdown/play, slower otherwise.
@@ -238,8 +252,8 @@ export function OnlineMode({
       saveLingoMpSession(s);
       setSession(s);
       const initial = await apiLingoMpView(created.matchId, created.playerToken);
-      setView(initial);
-      setClockOffset(Date.parse(initial.serverNow) - Date.now());
+      lastVersionRef.current = -1;
+      applyView(initial);
     } catch (err) {
       push(
         err instanceof Error ? err.message : "Neizdevās izveidot istabu",
@@ -272,8 +286,8 @@ export function OnlineMode({
       saveLingoMpSession(s);
       setSession(s);
       const initial = await apiLingoMpView(joined.matchId, joined.playerToken);
-      setView(initial);
-      setClockOffset(Date.parse(initial.serverNow) - Date.now());
+      lastVersionRef.current = -1;
+      applyView(initial);
     } catch (err) {
       push(
         err instanceof Error ? err.message : "Neizdevās pievienoties",
@@ -300,27 +314,29 @@ export function OnlineMode({
     }
     if (type === "extend") push("+15 sekundes", "success");
     if (res.view) {
-      setView(res.view);
-      setClockOffset(Date.parse(res.view.serverNow) - Date.now());
+      applyView(res.view);
     }
     return res.view ?? null;
   };
 
   const submitGuess = (word: string): boolean => {
     if (!session) return false;
+    const roundId = view?.currentRound?.id;
+    if (!roundId) return false;
     if (submittingRef.current) {
       // Serialize: remember the word; it is submitted right after the
       // in-flight guess resolves (if the buffer still holds it).
-      queuedGuessRef.current = word;
+      queuedGuessRef.current = { word, roundId };
       return false;
     }
     // A lost response is retried with the same action ID so the server can
     // never apply the same guess twice.
+    const pending = pendingGuessRef.current;
     const actionId =
-      pendingGuessRef.current?.word === word
-        ? pendingGuessRef.current.actionId
+      pending && pending.roundId === roundId && pending.word === word
+        ? pending.actionId
         : crypto.randomUUID();
-    pendingGuessRef.current = { actionId, word };
+    pendingGuessRef.current = { actionId, word, roundId };
     submittingRef.current = true;
     setSubmitting(true);
     void (async () => {
@@ -332,25 +348,30 @@ export function OnlineMode({
           payload: { word },
         });
         if (res.ok && res.view) {
-          setView(res.view);
-          setClockOffset(Date.parse(res.view.serverNow) - Date.now());
-          accepted = guessLandedIn(res.view, word);
+          applyView(res.view);
+          accepted = guessLandedIn(res.view, roundId, word);
+          const stillSameRound = res.view.currentRound?.id === roundId;
           if (accepted) {
             pendingGuessRef.current = null;
             // Only clear letters that still hold the accepted word; a late
             // response must never wipe input typed for the next round.
             if (
-              buffer.every((c) => c === null) ||
-              bufferHoldsWord(buffer, fixedForRound(res.view), word)
+              stillSameRound &&
+              (buffer.every((c) => c === null) ||
+                bufferHoldsWord(buffer, fixedForRound(res.view), word))
             ) {
               reset();
             }
             playSound(
               res.view.currentRound?.yourOutcome === "solved" ? "win" : "flip",
             );
-          } else {
+          } else if (stillSameRound) {
             pendingGuessRef.current = null;
             push(res.error ?? "Minējums netika pieņemts", "error");
+          } else {
+            // The round advanced while this response was in flight; it must
+            // not affect the new round's input.
+            pendingGuessRef.current = null;
           }
         } else {
           pendingGuessRef.current = null;
@@ -367,10 +388,11 @@ export function OnlineMode({
         queuedGuessRef.current = null;
         if (
           queued &&
+          queued.roundId === currentRoundIdRef.current &&
           (buffer.every((c) => c === null) ||
-            bufferHoldsWord(buffer, latestFixedRef.current, queued))
+            bufferHoldsWord(buffer, latestFixedRef.current, queued.word))
         ) {
-          submitGuess(queued);
+          submitGuess(queued.word);
         }
       }
     })();
@@ -378,7 +400,10 @@ export function OnlineMode({
   };
 
   const fixed = useMemo(() => (view ? fixedForRound(view) : []), [view]);
-  latestFixedRef.current = fixed;
+  useEffect(() => {
+    latestFixedRef.current = fixed;
+  }, [fixed]);
+  const currentRoundId = view?.currentRound?.id ?? null;
   const { buffer, shakeTick, append, backspace, submit, reset } = useGuessInput({
     enabled:
       !!view &&
@@ -387,9 +412,21 @@ export function OnlineMode({
       view.currentRound.yourOutcome === "playing",
     fixedPositions: fixed,
     length: view?.length ?? 5,
+    roundKey: currentRoundId ?? "",
     pack: latvianPack,
     onSubmit: submitGuess,
   });
+
+  // Round barrier: when the authoritative round changes, drop everything
+  // that belonged to the previous round before any input is accepted.
+  useEffect(() => {
+    if (currentRoundIdRef.current === currentRoundId) return;
+    currentRoundIdRef.current = currentRoundId;
+    pendingGuessRef.current = null;
+    queuedGuessRef.current = null;
+    submittingRef.current = false;
+    setSubmitting(false);
+  }, [currentRoundId]);
 
   const rows: BoardRow[] = useMemo(() => {
     const round = view?.currentRound;
@@ -460,14 +497,15 @@ export function OnlineMode({
   useEffect(() => {
     const pending = pendingGuessRef.current;
     if (!pending || !view) return;
-    const landed = guessLandedIn(view, pending.word);
+    const landed = guessLandedIn(view, pending.roundId, pending.word);
     if (landed) {
       pendingGuessRef.current = null;
       setSubmitting(false);
       submittingRef.current = false;
       if (
-        buffer.every((c) => c === null) ||
-        bufferHoldsWord(buffer, fixedForRound(view), pending.word)
+        view.currentRound?.id === pending.roundId &&
+        (buffer.every((c) => c === null) ||
+          bufferHoldsWord(buffer, fixedForRound(view), pending.word))
       ) {
         reset();
       }

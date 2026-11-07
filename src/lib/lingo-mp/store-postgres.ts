@@ -80,10 +80,7 @@ export class PostgresLingoMpStore implements LingoMpStore {
       const caFile = process.env.LINGO_MP_SSL_CA_FILE;
       if (caFile) {
         sslConfig.ca = fs.readFileSync(
-          /* turbopackIgnore: true */ path.resolve(
-            process.cwd(),
-            caFile,
-          ),
+          path.resolve(/* turbopackIgnore: true */ process.cwd(), caFile),
         );
       }
       ssl = sslConfig;

@@ -23,9 +23,11 @@ async function typeMp(page: import("@playwright/test").Page, word: string) {
 }
 
 async function waitForInput(page: import("@playwright/test").Page) {
-  await page
-    .getByRole("button", { name: "Apstiprināt" })
-    .waitFor({ state: "visible" });
+  // The round header advances one poll before the keyboard actually becomes
+  // active; always wait for an enabled Enter (active round) before typing.
+  await expect(page.getByRole("button", { name: "Apstiprināt" })).toBeEnabled({
+    timeout: 30000,
+  });
   await page.waitForTimeout(300);
 }
 

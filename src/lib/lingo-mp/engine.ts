@@ -796,6 +796,7 @@ export function buildView(
 
   const roundView = round
     ? {
+        id: round.id,
         index: round.roundIndex,
         status: (
           round.resolvedAt !== null
@@ -834,6 +835,7 @@ export function buildView(
   const resolvedRounds = agg.rounds
     .filter((r) => r.resolvedAt !== null)
     .map((r) => ({
+      id: r.id,
       index: r.roundIndex,
       status: "resolved" as const,
       wordLength: config.length,

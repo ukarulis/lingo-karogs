@@ -172,6 +172,15 @@ test.describe("Lingo online multiplayer", () => {
         ).toBeVisible({ timeout: 20000 });
         await waitForInput(a);
         await waitForInput(b);
+        // A new round starts from a clean editable buffer: only the revealed
+        // first letter is prefilled (1 hint + 3 empty current cells + 16).
+        for (const page of [a, b]) {
+          await expect(
+            page
+              .getByRole("group", { name: "Spēles laukums" })
+              .getByLabel("Tukšs lauciņš"),
+          ).toHaveCount(19);
+        }
       }
     }
 

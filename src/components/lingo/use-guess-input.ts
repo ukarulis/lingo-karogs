@@ -27,6 +27,7 @@ export function useGuessInput({
   enabled,
   fixedPositions,
   length = DEFAULT_LENGTH,
+  roundKey = "",
   pack = latvianPack,
   onSubmit,
 }: {
@@ -36,6 +37,11 @@ export function useGuessInput({
   /** Return true when the guess was accepted; false keeps the word editable. */
   onSubmit: (word: string) => boolean;
   length?: number;
+  /**
+   * Stable identity of the active round. When it changes, all editable
+   * letters and the cursor are discarded and the new fixed letters loaded.
+   */
+  roundKey?: string;
   pack?: LanguagePack;
 }) {
   const [buffer, setBuffer] = useState<(string | null)[]>(() =>
@@ -49,6 +55,7 @@ export function useGuessInput({
   const enabledRef = useRef(enabled);
   const fixedRef = useRef(fixedPositions);
   const prevFixedRef = useRef<(string | null)[]>([]);
+  const roundKeyRef = useRef(roundKey);
   /** Next position the player is expected to type at. */
   const cursorRef = useRef(0);
 
@@ -59,6 +66,19 @@ export function useGuessInput({
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
+
+  // Hard round barrier: a new authoritative round always starts from a clean
+  // editable buffer, regardless of anything typed or in flight before it.
+  useEffect(() => {
+    if (roundKeyRef.current === roundKey) return;
+    roundKeyRef.current = roundKey;
+    const next = normalizeLength(fixedPositions.map((f) => f ?? null), length);
+    prevFixedRef.current = fixedPositions;
+    fixedRef.current = fixedPositions;
+    cursorRef.current = 0;
+    bufferRef.current = next;
+    setBuffer(next);
+  }, [roundKey, fixedPositions, length]);
 
   // Keep the buffer in sync with fixed positions whenever they change:
   // locked letters are written in, and letters locked by a previous round are

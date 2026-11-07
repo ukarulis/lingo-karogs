@@ -92,6 +92,8 @@ export interface RoundPlayerView {
 }
 
 export interface RoundView {
+  /** Stable authoritative round identity (matchId:roundIndex). */
+  id: string;
   index: number;
   status: "pending" | "active" | "resolved";
   wordLength: number;
