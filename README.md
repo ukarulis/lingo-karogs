@@ -39,6 +39,9 @@ oriģinālo izstrādātāju.
 - **Divatā uz viena ekrāna** — ar privātuma aizkaru starp gājieniem.
 - **Spēlēt ar draugu** — privātas istabas ar saiti/kodu, servera pārbaudīti
   gājieni, savienojuma atjaunošana, revanši, servera verificēta līderu tabula.
+- **Gatavās formācijas** — pieci pārdomāti sākuma izvietojumi ar vizuāliem
+  priekšskatiem, viena pieskāriena spēles sākums, brīva pārveidošana un
+  paša saglabātu formāciju izmantošana pret datoru, uz vietas un tiešsaistē.
 - Klasiskais 10×10 laukums, divi ezeri, 40 figūras katrā armijā, izlūki,
   mīnētāji, bumbas, spiegs, karogs — pilns noteikumu kopums.
 
@@ -47,6 +50,10 @@ oriģinālo izstrādātāju.
 - Statistika, sērijas, sasniegumi un spēļu vēsture (lokāli, bez konta).
 - Gaišā/tumšā tēma, mobilais skārienjutīgais izkārtojums, skaņas efekti,
   interaktīvas pamācības abām spēlēm.
+- UI sistēma veidota uz **Web Awesome** web komponentēm (pogas, dialogi,
+  slēdži, segmentētās vadīklas, paziņojumi) ar SSR/hydration atbalstu Next.js
+  vidē un pielāgotu zīmola tēmu (indigo/stones).
+- Pārzīmētas militāro figūru grafiskās zīmes un kaujas lauka vizuālais stils.
 - Latviešu valodā, bez reģistrācijas.
 
 ## Ātrā palaišana lokāli
@@ -91,12 +98,23 @@ kontrolei, bet klienti saņem tikai savas puses rediģēto skatu.
 ## Testi
 
 ```bash
-npm test            # Vitest: 77 vienības/integrācijas testi (engines, AI, dati, multiplayer)
+npm test            # Vitest: 88 vienības/integrācijas testi (engines, AI, dati, multiplayer, formācijas)
 npx playwright install chromium
-npm run test:e2e    # Playwright: 16 E2E scenāriji (darbojas pret produkcijas būvi)
+npm run test:e2e    # Playwright: 38 E2E scenāriji (funkcionālie, a11y, vizuālās regresijas)
 npm run typecheck
 npm run lint
 ```
+
+Vizuālo regresiju testu etaloni glabājas `e2e/visual.spec.ts-snapshots/`; lai
+apzināti atjauninātu etalonus pēc dizaina izmaiņām:
+
+```bash
+npx playwright test e2e/visual.spec.ts --update-snapshots
+```
+
+Web Awesome stilus saplacina `scripts/bundle-webawesome-css.mjs` (izvade:
+`src/styles/webawesome.css`) — skriptu jāpalaiž pēc `@awesome.me/webawesome`
+versijas atjaunināšanas.
 
 ## Izvietošana (Vercel)
 

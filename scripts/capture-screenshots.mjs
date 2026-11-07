@@ -56,7 +56,7 @@ for (const [url, file] of shots) {
   await page.goto(BASE + url);
   await page.waitForTimeout(1800);
   if (url === "/karogs") {
-    await page.getByRole("button", { name: "Izveidot nejauši" }).click();
+    await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
     await page.waitForTimeout(400);
   }
   await page.screenshot({ path: path.join(OUT, file), fullPage: true });

@@ -1,6 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import WaRadioGroup from "@awesome.me/webawesome/dist/react/radio-group/index.js";
+import WaRadio from "@awesome.me/webawesome/dist/react/radio/index.js";
 
 export function Segmented<T extends string>({
   options,
@@ -16,30 +17,24 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label={ariaLabel}
-      className={cn(
-        "inline-flex max-w-full flex-wrap gap-1 rounded-xl bg-stone-200/80 p-1 dark:bg-stone-800",
-        className,
-      )}
+    <WaRadioGroup
+      value={value}
+      label={ariaLabel}
+      orientation="horizontal"
+      size="s"
+      onChange={(e) => onChange((e.target as { value?: string }).value as T)}
+      className={"wa-sr-label " + (className ?? "")}
     >
       {options.map((o) => (
-        <button
+        <WaRadio
           key={o.value}
-          role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "rounded-lg px-3 py-1.5 text-sm font-semibold transition",
-            value === o.value
-              ? "bg-white text-stone-900 shadow-sm dark:bg-stone-600 dark:text-white"
-              : "text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200",
-          )}
+          value={o.value}
+          appearance="button"
+          checked={value === o.value}
         >
           {o.label}
-        </button>
+        </WaRadio>
       ))}
-    </div>
+    </WaRadioGroup>
   );
 }

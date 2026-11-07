@@ -16,6 +16,7 @@ import {
   Zap,
   EyeOff,
 } from "lucide-react";
+import WaProgressBar from "@awesome.me/webawesome/dist/react/progress-bar/index.js";
 import { Card } from "@/components/ui/card";
 import { Kpi } from "@/components/ui/kpi";
 import {
@@ -53,14 +54,12 @@ function GuessDistribution({ stats }: { stats: LingoStats }) {
         {dist.map((count, i) => (
           <div key={i} className="flex items-center gap-2 text-xs font-semibold">
             <span className="w-4 text-right tabular-nums text-stone-400">{i + 1}</span>
-            <div className="h-5 flex-1 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
-              <div
-                className="flex h-full items-center justify-end rounded-md bg-indigo-500 pr-1.5 text-[10px] font-bold text-white transition-all"
-                style={{ width: `${Math.max(count > 0 ? 8 : 0, (count / max) * 100)}%` }}
-              >
-                {count > 0 ? count : ""}
-              </div>
-            </div>
+            <WaProgressBar
+              className="flex-1"
+              value={Math.max(count > 0 ? 8 : 0, (count / max) * 100)}
+            >
+              {count > 0 ? count : ""}
+            </WaProgressBar>
           </div>
         ))}
       </div>
@@ -130,14 +129,9 @@ function KarogsSection() {
             return (
               <div key={label} className="flex items-center gap-2 text-xs font-semibold">
                 <span className="w-32 shrink-0 text-stone-500 dark:text-stone-400">{label}</span>
-                <div className="h-4 flex-1 overflow-hidden rounded-md bg-stone-100 dark:bg-stone-800">
-                  <div
-                    className="flex h-full items-center justify-end rounded-md bg-rose-500 pr-1.5 text-[10px] font-bold text-white"
-                    style={{ width: `${pct}%` }}
-                  >
-                    {pct > 18 ? `${row.wins}/${row.games}` : ""}
-                  </div>
-                </div>
+                <WaProgressBar className="flex-1" value={pct}>
+                  {pct > 18 ? `${row.wins}/${row.games}` : ""}
+                </WaProgressBar>
                 <span className="w-16 text-right tabular-nums text-stone-400">
                   {row.games > 0 ? `${row.wins}/${row.games}` : "—"}
                 </span>

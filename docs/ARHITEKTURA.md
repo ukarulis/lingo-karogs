@@ -6,7 +6,8 @@
   raundi, spēļu zāle), `daily.ts` (Rīgas laika kalendārs), `words.ts`
   (vārdnīcas ielāde un atlase), `colors.ts` (krāsu shēmas).
 - `src/lib/karogs/` — tīrā Karogs loģika: `engine.ts` (laukums, izvietošana,
-  gājieni, kaujas, neizšķirti), `ai.ts` (trīs AI līmeņi), `summary.ts`.
+  gājieni, kaujas, neizšķirti), `ai.ts` (trīs AI līmeņi), `summary.ts`,
+  `formations.ts` (gatavās formācijas, pārbaude un serializācija).
 - `src/lib/store/` — lokālā noturība (localStorage ar atmiņas fallback),
   statistika, sasniegumi, iestatījumi, tiešsaistes sesijas.
 - `src/lib/multiplayer/` — servera puses loģika: krātuves saskarne ar SQLite
@@ -16,6 +17,22 @@
   darbības, skati, līderu tabula, veselības pārbaude.
 - `src/components/` — React UI; spēļu dzinēji netiek importēti ārpus
   komponentiem un API ceļiem, un to stāvoklis vienmēr ir serializējams JSON.
+
+## UI slānis (Web Awesome)
+
+- Pamata komponenti (`src/components/ui/`) ir veidoti uz Web Awesome React
+  wrapperiem (`@awesome.me/webawesome/dist/react/*`), kas reģistrē web
+  komponentes, iestata īpašības un klausās pielāgotos notikumus (`wa-*`).
+- Next.js SSR darbojas kā parasts React renderējums; wrap-eri pievieno
+  `suppressHydrationWarning`, un React 19 iestata īpašības/notikumus tieši uz
+  custom elementiem.
+- Web Awesome stili tiek saplacināti vienā failā
+  (`src/styles/webawesome.css`, sk. `scripts/bundle-webawesome-css.mjs`) un
+  importēti caur `globals.css`; zīmola marķieru (indigo, stones) pārdefinēšana
+  notiek tajā pašā CSS slānī `wa-theme`.
+- Tumšā tēma: kopā ar Tailwind klasi `dark` tiek slēgta arī Web Awesome
+  klase `wa-dark` (`applyThemeToDocument` un pirms-hidrācijas skripts).
+- Paziņojumi izmanto `<wa-toast>` imperatīvo `create()` API.
 
 ## Tiešsaistes spēles modelis
 

@@ -1,16 +1,17 @@
+"use client";
+
+import WaCard from "@awesome.me/webawesome/dist/react/card/index.js";
 import { cn } from "@/lib/utils";
 
 export function Card({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: React.HTMLAttributes<HTMLElement>) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900",
-        className,
-      )}
-      {...props}
+    <WaCard
+      appearance="outlined"
+      className={cn("rounded-2xl bg-white shadow-sm dark:bg-stone-900", className)}
+      {...(props as Record<string, unknown>)}
     />
   );
 }

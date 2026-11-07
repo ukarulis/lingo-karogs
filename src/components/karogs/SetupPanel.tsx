@@ -12,6 +12,8 @@ import {
   isLake,
   randomSetup,
 } from "@/lib/karogs/engine";
+import { applyFormation, formationById } from "@/lib/karogs/formations";
+import { FormationPicker } from "./FormationPicker";
 import { cn } from "@/lib/utils";
 import { storageGet, storageSet } from "@/lib/store/storage";
 
@@ -47,6 +49,8 @@ function entryRank(entry: (typeof ARMY)[number]): number | null {
 export interface SetupController {
   selected: { kind: Piece["kind"]; rank: number | null } | null;
   setSelected: (s: SetStateAction<{ kind: Piece["kind"]; rank: number | null } | null>) => void;
+  formationId: string | null;
+  applyPreset: (id: string) => void;
   placedCounts: Map<string, number>;
   totalPlaced: number;
   dragRef: React.MutableRefObject<{ kind: Piece["kind"]; rank: number | null } | null>;
@@ -64,6 +68,7 @@ export function useSetupController(
   const [selected, setSelected] = useState<{ kind: Piece["kind"]; rank: number | null } | null>(
     null,
   );
+  const [formationId, setFormationId] = useState<string | null>(null);
   const dragRef = useRef<{ kind: Piece["kind"]; rank: number | null } | null>(null);
 
   const placedCounts = useMemo(() => {
@@ -92,12 +97,14 @@ export function useSetupController(
       const next = { ...placement };
       delete next[idx];
       onPlacementChange(next);
+      setFormationId(null);
       return;
     }
     const prefix = `${side}-${selected.rank ?? selected.kind}`;
     const idIndex = (usedIds.get(prefix) ?? -1) + 1;
     const piece = makePiece(side, selected.kind, selected.rank, idIndex);
     onPlacementChange({ ...placement, [idx]: piece });
+    setFormationId(null);
   };
 
   const handleDrop = (idx: number) => {
@@ -110,13 +117,26 @@ export function useSetupController(
   return {
     selected,
     setSelected,
+    formationId,
+    applyPreset: (id: string) => {
+      const formation = formationById(id);
+      if (!formation) return;
+      onPlacementChange(applyFormation(formation, side, Math.random));
+      setFormationId(id);
+    },
     placedCounts,
     totalPlaced: Object.keys(placement).length,
     dragRef,
     handleCell,
     handleDrop,
-    applyRandom: () => onPlacementChange(randomSetup(side, Math.random)),
-    applyClear: () => onPlacementChange({}),
+    applyRandom: () => {
+      onPlacementChange(randomSetup(side, Math.random));
+      setFormationId(null);
+    },
+    applyClear: () => {
+      onPlacementChange({});
+      setFormationId(null);
+    },
   };
 }
 
@@ -224,6 +244,12 @@ export function SetupPanel({
             </button>
           );
         })}
+      </div>
+      <div className="mt-4 border-t border-stone-200 pt-3 dark:border-stone-700">
+        <FormationPicker
+          selectedId={controller.formationId}
+          onApply={controller.applyPreset}
+        />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" onClick={controller.applyRandom}>

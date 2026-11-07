@@ -70,4 +70,31 @@ test.describe("Karogs", () => {
     await expect(page.getByText("Sarkanā kārta")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("grid", { name: /Kaujas laukums|Spēle/ })).toBeVisible();
   });
+
+  test("applies a preset formation and starts instantly", async ({ page }) => {
+    await openKarogs(page);
+    const formation = page.getByRole("button", { name: /Agresīvā/ }).first();
+    await formation.click();
+    await expect(formation).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("40/40")).toBeVisible();
+    await page.getByRole("button", { name: "Sākt kauju" }).click();
+    await expect(page.getByText("Sarkanā kārta")).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("saves a customized preset formation", async ({ page }) => {
+    await openKarogs(page);
+    await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
+    await expect(page.getByText("40/40")).toBeVisible();
+    await page.getByLabel("Formācijas nosaukums").fill("Mana kopija");
+    await page.getByRole("button", { name: "Saglabāt" }).click();
+    await expect(page.getByRole("button", { name: "Mana kopija" })).toBeVisible();
+  });
+
+  test("random formation preset rerolls a valid setup", async ({ page }) => {
+    await openKarogs(page);
+    await page.getByRole("button", { name: /Nejaušā/ }).first().click();
+    await expect(page.getByText("40/40")).toBeVisible();
+    await page.getByRole("button", { name: "Sākt kauju" }).click();
+    await expect(page.getByText("Sarkanā kārta")).toBeVisible({ timeout: 20_000 });
+  });
 });

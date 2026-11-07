@@ -1,6 +1,6 @@
 {
   "name": "lingo-karogs",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -20,6 +20,7 @@
     "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
+    "@awesome.me/webawesome": "^3.14.0",
     "@supabase/supabase-js": "^2.119.0",
     "better-sqlite3": "^13.0.3",
     "lucide-react": "^0.545.0",
@@ -29,6 +30,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/better-sqlite3": "^9.6.0",
