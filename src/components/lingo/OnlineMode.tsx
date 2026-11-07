@@ -108,6 +108,18 @@ function guessLandedIn(view: LingoMpView, word: string): boolean {
   );
 }
 
+/** True when the editable buffer still shows exactly the accepted word,
+ * ignoring locked positions (which carry-forward may have just updated). */
+function bufferHoldsWord(
+  buffer: (string | null)[],
+  fixed: (string | null)[],
+  word: string,
+): boolean {
+  return word.split("").every((ch, i) =>
+    fixed[i] !== null ? fixed[i] === ch : buffer[i] === ch,
+  );
+}
+
 export function OnlineMode({
   palette,
 }: {
@@ -319,7 +331,10 @@ export function OnlineMode({
             pendingGuessRef.current = null;
             // Only clear letters that still hold the accepted word; a late
             // response must never wipe input typed for the next round.
-            if (buffer.join("") === word || buffer.every((c) => c === null)) {
+            if (
+              buffer.every((c) => c === null) ||
+              bufferHoldsWord(buffer, fixedForRound(res.view), word)
+            ) {
               reset();
             }
             playSound(
@@ -433,8 +448,8 @@ export function OnlineMode({
       setSubmitting(false);
       submittingRef.current = false;
       if (
-        buffer.join("") === pending.word ||
-        buffer.every((c) => c === null)
+        buffer.every((c) => c === null) ||
+        bufferHoldsWord(buffer, fixedForRound(view), pending.word)
       ) {
         reset();
       }

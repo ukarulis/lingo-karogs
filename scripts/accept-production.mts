@@ -170,11 +170,21 @@ async function readyBoth(
       .first()
       .getAttribute("aria-label");
     const first = (firstLabel ?? "a").slice(0, 1).toLowerCase();
-    for (let i = 0; i < 5; i++) {
-      const filler = PLAIN.slice((round * 5 + i) * 3, (round * 5 + i) * 3 + 3).padEnd(3, "a");
-      await typeMp(a, first + filler);
-      await typeMp(b, first + "z" + filler.slice(0, 2));
-      await a.waitForTimeout(350);
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const base = (round * 7 + attempt) * 5;
+      const fillerA = [17, 3, 11, 19, 1, 8]
+        .map((off, i) => PLAIN[(base + off + i * 5) % PLAIN.length])
+        .slice(attempt, attempt + 3)
+        .join("")
+        .padEnd(3, "a");
+      const fillerB = [5, 13, 21, 7, 15, 2]
+        .map((off, i) => PLAIN[(base + off + i * 5) % PLAIN.length])
+        .slice(attempt, attempt + 3)
+        .join("")
+        .padEnd(3, "a");
+      await typeMp(a, first + fillerA);
+      await typeMp(b, first + fillerB);
+      await a.waitForTimeout(300);
     }
     if (round < 4) {
       await a
