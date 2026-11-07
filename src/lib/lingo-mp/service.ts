@@ -386,8 +386,14 @@ export class LingoMultiplayerService {
     prev: MatchAggregate,
     next: MatchAggregate,
   ): Promise<MatchAggregate | null> {
-    for (const round of next.rounds) {
-      await store.upsertRound(round);
+    for (let i = 0; i < next.rounds.length; i++) {
+      const previous = prev.rounds[i];
+      const current = next.rounds[i];
+      // Upsert only changed rounds: a stale aggregate must never clobber
+      // outcome columns another transaction just committed.
+      if (!previous || JSON.stringify(previous) !== JSON.stringify(current)) {
+        await store.upsertRound(current);
+      }
     }
     for (const s of next.submissions.slice(prev.submissions.length)) {
       await store.insertSubmission(s);

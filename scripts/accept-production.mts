@@ -171,6 +171,15 @@ async function readyBoth(
       .getAttribute("aria-label");
     const first = (firstLabel ?? "a").slice(0, 1).toLowerCase();
     for (let attempt = 0; attempt < 6; attempt++) {
+      const aEnabled = await a
+        .getByRole("button", { name: "Apstiprināt" })
+        .isEnabled()
+        .catch(() => false);
+      const bEnabled = await b
+        .getByRole("button", { name: "Apstiprināt" })
+        .isEnabled()
+        .catch(() => false);
+      if (!aEnabled && !bEnabled) break;
       const base = (round * 7 + attempt) * 5;
       const fillerA = [17, 3, 11, 19, 1, 8]
         .map((off, i) => PLAIN[(base + off + i * 5) % PLAIN.length])
@@ -182,9 +191,11 @@ async function readyBoth(
         .slice(attempt, attempt + 3)
         .join("")
         .padEnd(3, "a");
-      await typeMp(a, first + fillerA);
-      await typeMp(b, first + fillerB);
-      await a.waitForTimeout(300);
+      if (aEnabled) await typeMp(a, first + fillerA);
+      if (bEnabled) await typeMp(b, first + fillerB);
+      await a.getByText("Iesniedz…").waitFor({ state: "hidden", timeout: 5000 }).catch(() => undefined);
+      await b.getByText("Iesniedz…").waitFor({ state: "hidden", timeout: 5000 }).catch(() => undefined);
+      await a.waitForTimeout(400);
       const ta = await a.locator("wa-toast-item").allInnerTexts();
       const tb = await b.locator("wa-toast-item").allInnerTexts();
       if (ta.length || tb.length) {
@@ -192,9 +203,16 @@ async function readyBoth(
       }
     }
     if (round < 4) {
+      const advanced = await a
+        .getByText(`Kārta ${round + 2}/5`, { exact: false })
+        .isVisible()
+        .catch(() => false);
+      if (!advanced) {
+        await a.waitForTimeout(12000);
+      }
       await a
         .getByText(`Kārta ${round + 2}/5`, { exact: false })
-        .waitFor({ timeout: 30000 });
+        .waitFor({ timeout: 45000 });
       await waitForInput(a);
       await waitForInput(b);
     }
