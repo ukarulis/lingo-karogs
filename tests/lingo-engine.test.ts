@@ -13,8 +13,12 @@ import {
   arcadeSubmit,
   createRound,
   evaluateGuess,
+  fixedLetters,
   isLatvianWord,
   keyboardEvidence,
+  lockedPositions,
+  modeDefaults,
+  normalizeRound,
   normalizeWord,
   revealLetter,
   startArcade,
@@ -238,5 +242,207 @@ describe("arcade mode", () => {
     s = arcadeNextWord(s, "asara");
     expect(s.current.target).toBe("asara");
     expect(s.hints).toBe(4);
+  });
+});
+
+describe("guessing policies", () => {
+  it("defaults daily and endless to freeform, arcade to dictionary", () => {
+    expect(modeDefaults("daily").guessPolicy).toBe("freeform");
+    expect(modeDefaults("endless").guessPolicy).toBe("freeform");
+    expect(modeDefaults("arcade").guessPolicy).toBe("dictionary");
+    expect(modeDefaults("daily").carryConfirmedLetters).toBe(true);
+    expect(modeDefaults("arcade").carryConfirmedLetters).toBe(false);
+  });
+
+  it("accepts invented freeform sequences and consumes exactly one attempt", () => {
+    const round = createRound("ābols", "daily");
+    const next = submitGuess(round, "ācdee", new Set());
+    expect(next.guesses).toEqual(["ācdee"]);
+    expect(next.attemptsUsed).toBe(1);
+    expect(next.status).toBe("playing");
+    expect(next.results[0]).toEqual([
+      "correct",
+      "absent",
+      "absent",
+      "absent",
+      "absent",
+    ]);
+  });
+
+  it("rejects non-dictionary words under the dictionary policy without consuming an attempt", () => {
+    const round = createRound("ābols", "daily", { guessPolicy: "dictionary" });
+    expect(() => submitGuess(round, "ācdee", DICT)).toThrowError(LingoError);
+    try {
+      submitGuess(round, "ācdee", DICT);
+    } catch (e) {
+      expect((e as LingoError).code).toBe("not-in-dictionary");
+    }
+    expect(round.guesses.length).toBe(0);
+    expect(round.attemptsUsed).toBe(0);
+  });
+
+  it("still enforces the first letter under the freeform policy", () => {
+    const round = createRound("ābols", "daily", { firstLetter: "p" });
+    expect(() => submitGuess(round, "ācdee", new Set())).toThrowError(LingoError);
+  });
+
+  it("freeform rejects malformed input (length and alphabet) without consuming an attempt", () => {
+    const round = createRound("ābols", "daily");
+    expect(() => submitGuess(round, "ābol", new Set())).toThrowError(LingoError);
+    expect(() => submitGuess(round, "ābols1", new Set())).toThrowError(LingoError);
+    expect(round.attemptsUsed).toBe(0);
+  });
+});
+
+describe("carry-forward of confirmed letters", () => {
+  it("locks correctly-placed letters into subsequent rows", () => {
+    let round = createRound("ābols", "daily");
+    round = submitGuess(round, "ābele", DICT);
+    expect(round.status).toBe("playing");
+    expect(round.confirmed).toEqual([true, true, false, true, false]);
+    expect(lockedPositions(round)).toEqual([true, true, false, true, false]);
+    expect(fixedLetters(round)).toEqual(["ā", "b", null, "l", null]);
+  });
+
+  it("never locks yellow letters", () => {
+    const round = createRound("ābols", "daily");
+    const next = submitGuess(round, "ālsoa", DICT);
+    expect(next.confirmed).toEqual([true, false, false, false, false]);
+    expect(fixedLetters(next)[3]).toBeNull();
+  });
+
+  it("keeps earlier confirmed letters when later rows add none", () => {
+    let round = createRound("ābols", "daily");
+    round = submitGuess(round, "ābele", DICT); // locks positions 0, 1, 3
+    round = submitGuess(round, "ābloo", DICT); // only positions 0 and 1 correct
+    expect(round.confirmed).toEqual([true, true, false, true, false]);
+  });
+
+  it("can be disabled so no position is carried forward", () => {
+    const round = createRound("ābols", "endless", {
+      carryConfirmedLetters: false,
+    });
+    const next = submitGuess(round, "ābele", DICT);
+    expect(next.confirmed.every((c) => !c)).toBe(true);
+    expect(fixedLetters(next).slice(1).every((f) => f === null)).toBe(true);
+  });
+});
+
+describe("variable word lengths", () => {
+  it("creates and solves 4-, 5-, 6- and 7-letter rounds", () => {
+    const cases: Array<[string, number]> = [
+      ["akls", 4],
+      ["ābols", 5],
+      ["ābolus", 6],
+      ["āboliņš", 7],
+    ];
+    for (const [target, len] of cases) {
+      expect(isLatvianWord(target, len)).toBe(true);
+      const round = createRound(target, "endless", { length: len });
+      expect(round.length).toBe(len);
+      expect(round.revealed).toHaveLength(len);
+      expect(round.confirmed).toHaveLength(len);
+      const won = submitGuess(round, target, new Set());
+      expect(won.status).toBe("won");
+      expect(won.attemptsUsed).toBe(1);
+    }
+  });
+
+  it("rejects targets whose length does not match the config", () => {
+    expect(() => createRound("ābols", "endless", { length: 6 })).toThrow();
+    expect(() => createRound("ābols", "endless", { length: 3 })).toThrow();
+    expect(() => createRound("ābols", "endless", { length: 8 })).toThrow();
+  });
+
+  it("evaluates words of any supported length and rejects mismatched operands", () => {
+    expect(evaluateGuess("āboli", "āboli").every((c) => c === "correct")).toBe(true);
+    expect(() => evaluateGuess("ābols", "ābolus")).toThrow();
+  });
+
+  it("rejects submissions after a resolved round (multiplayer-reserved status)", () => {
+    const round = {
+      ...createRound("ābols", "daily"),
+      status: "resolved" as const,
+    };
+    expect(() => submitGuess(round, "ābele", DICT)).toThrowError(LingoError);
+  });
+});
+
+describe("legacy save recovery", () => {
+  const legacyRound = {
+    mode: "daily",
+    target: "ābols",
+    firstLetter: "ā",
+    guesses: ["ābele"],
+    results: [["correct", "correct", "absent", "correct", "absent"]],
+    revealed: [false, false, false, false, false],
+    status: "playing",
+    attemptsUsed: 1,
+  };
+
+  it("fills config fields from mode defaults", () => {
+    const round = normalizeRound(legacyRound);
+    expect(round).not.toBeNull();
+    expect(round!.length).toBe(5);
+    expect(round!.maxAttempts).toBe(5);
+    expect(round!.guessPolicy).toBe("freeform");
+    expect(round!.carryConfirmedLetters).toBe(true);
+    expect(round!.revealFirstLetter).toBe(true);
+  });
+
+  it("derives carried letters from the last result row", () => {
+    const round = normalizeRound(legacyRound)!;
+    expect(round.confirmed).toEqual([true, true, false, true, false]);
+    expect(fixedLetters(round)[1]).toBe("b");
+  });
+
+  it("keeps arcade saves on the dictionary policy without carry-forward", () => {
+    const round = normalizeRound({ ...legacyRound, mode: "arcade" })!;
+    expect(round.guessPolicy).toBe("dictionary");
+    expect(round.carryConfirmedLetters).toBe(false);
+    expect(round.confirmed.every((c) => !c)).toBe(true);
+  });
+
+  it("blocks further duplicates in a legacy round that already contains duplicates", () => {
+    const dup = {
+      ...legacyRound,
+      guesses: ["ābele", "ābele"],
+      results: [
+        ["correct", "correct", "absent", "correct", "absent"],
+        ["correct", "correct", "absent", "correct", "absent"],
+      ],
+      attemptsUsed: 2,
+    };
+    const round = normalizeRound(dup)!;
+    expect(round.guesses).toHaveLength(2);
+    expect(round.attemptsUsed).toBe(2);
+    expect(round.status).toBe("playing");
+    expect(() => submitGuess(round, "ābele", DICT)).toThrowError(LingoError);
+    try {
+      submitGuess(round, "ābele", DICT);
+    } catch (e) {
+      expect((e as LingoError).code).toBe("duplicate-word");
+    }
+    expect(round.guesses).toHaveLength(2);
+    expect(round.attemptsUsed).toBe(2);
+    expect(round.status).toBe("playing");
+  });
+
+  it("repairs inconsistent terminal statuses", () => {
+    const bogus = {
+      ...legacyRound,
+      status: "won",
+      guesses: ["ābele"],
+      attemptsUsed: 1,
+    };
+    expect(normalizeRound(bogus)!.status).toBe("playing");
+  });
+
+  it("returns null for malformed payloads", () => {
+    expect(normalizeRound(null)).toBeNull();
+    expect(normalizeRound({})).toBeNull();
+    expect(normalizeRound({ target: "ab" })).toBeNull();
+    expect(normalizeRound({ target: "ābols", guesses: [42] })).toBeNull();
+    expect(normalizeRound({ target: "ābols", guesses: [], length: 7 })).toBeNull();
   });
 });

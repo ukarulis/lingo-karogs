@@ -5,7 +5,10 @@ export function shareText(
   round: LingoRound,
   palette: "modern" | "legacy",
 ): string {
-  const result = round.status === "won" ? `${round.attemptsUsed}/5` : "X/5";
+  const result =
+    round.status === "won"
+      ? `${round.attemptsUsed}/${round.maxAttempts}`
+      : `X/${round.maxAttempts}`;
   const grid = round.results
     .map((row) =>
       row

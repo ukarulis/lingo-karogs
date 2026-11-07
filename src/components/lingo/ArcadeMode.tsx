@@ -13,7 +13,9 @@ import {
   arcadeHint,
   arcadeNextWord,
   arcadeSubmit,
+  fixedLetters,
   keyboardEvidence,
+  normalizeRound,
   startArcade,
 } from "@/lib/lingo/engine";
 import { guessSet, pickTarget } from "@/lib/lingo/words";
@@ -76,8 +78,13 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
         return;
       }
     }
-    if (stored && stored.current) {
-      setSession(stored);
+    if (stored) {
+      const restored = normalizeRound(stored.current);
+      if (restored) {
+        setSession({ ...stored, current: restored });
+        return;
+      }
+      setSession(startArcade(pickTarget()));
     } else {
       setSession(startArcade(pickTarget()));
     }
@@ -91,13 +98,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
   const wordDone = !!round && round.status !== "playing";
   const inputEnabled = !!round && round.status === "playing" && !session?.over;
 
-  const fixed = useMemo(
-    () =>
-      round
-        ? round.revealed.map((r, i) => (r ? round.target[i] : null)).map((f, i) => (i === 0 ? round.firstLetter : f))
-        : [],
-    [round],
-  );
+  const fixed = useMemo(() => (round ? fixedLetters(round) : []), [round]);
 
   const { buffer, shakeTick, append, backspace, submit } = useGuessInput({
     enabled: inputEnabled,

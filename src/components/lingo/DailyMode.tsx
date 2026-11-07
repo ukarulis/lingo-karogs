@@ -10,7 +10,9 @@ import { useGuessInput } from "./use-guess-input";
 import {
   type LingoRound,
   createRound,
+  fixedLetters,
   keyboardEvidence,
+  normalizeRound,
   submitGuess,
 } from "@/lib/lingo/engine";
 import {
@@ -65,8 +67,13 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
       if (forced && /^[a-zāčēģīķļņšūž]{5}$/.test(forced)) target = forced;
     }
     const stored = loadGame<DailySave>("lingoDaily", isDailySave);
-    if (stored?.data.date === today && stored.data.round.target === target) {
-      setRound(stored.data.round);
+    const restored = stored ? normalizeRound(stored.data.round) : null;
+    if (
+      restored &&
+      stored?.data.date === today &&
+      restored.target === target
+    ) {
+      setRound(restored);
     } else {
       setRound(createRound(target, "daily"));
     }
@@ -85,13 +92,7 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
 
   const finished = round && round.status !== "playing";
 
-  const fixed = useMemo(
-    () =>
-      round
-        ? round.revealed.map((r, i) => (r ? round.target[i] : null)).map((f, i) => (i === 0 ? round.firstLetter : f))
-        : [],
-    [round],
-  );
+  const fixed = useMemo(() => (round ? fixedLetters(round) : []), [round]);
 
   const { buffer, shakeTick, append, backspace, submit } = useGuessInput({
     enabled: !!round && round.status === "playing",
@@ -120,7 +121,7 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
             date: today,
             word: next.target,
             won: false,
-            attempts: 5,
+            attempts: next.maxAttempts,
             shareGrid: "",
           });
           setResultOpen(true);

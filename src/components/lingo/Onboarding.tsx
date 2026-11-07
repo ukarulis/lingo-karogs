@@ -138,6 +138,11 @@ export function LingoOnboarding({
           <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
             Katrā kārtā dators izdomā <b>piecu burtu</b> latviešu vārdu un atklāj
             tā <b>pirmo burtu</b>. Tev ir <b>5 mēģinājumi</b>, lai vārdu atminētu.
+            Pareizi uzminētie burti automātiski parādās nākamajās rindās.
+          </p>
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-300">
+            Dienas un neierobežotajā spēlē der jebkura burtu kombinācija;
+            klasiskajā režīmā minējumam jābūt vārdnīcā esošam vārdam.
           </p>
         </div>
       ) : step === 1 ? (

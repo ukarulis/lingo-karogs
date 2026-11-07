@@ -3,21 +3,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const LATVIAN_KEY = /^[a-zA-ZāčēģīķļņšūžĀČĒĢĪĶĻŅŠŪŽ]$/;
-const LENGTH = 5;
+const DEFAULT_LENGTH = 5;
 
-function normalizeLength(values: (string | null)[]): (string | null)[] {
-  return Array.from({ length: LENGTH }, (_, i) => values[i] ?? null);
+function normalizeLength(
+  values: (string | null)[],
+  length: number,
+): (string | null)[] {
+  return Array.from({ length }, (_, i) => values[i] ?? null);
 }
 
 /**
- * Controlled five-letter input with explicit accept/reject semantics.
+ * Controlled letter input with explicit accept/reject semantics.
  * The editable buffer is cleared synchronously only after the parent accepts
  * a submission, so failed submissions (invalid or duplicate words) stay
- * editable and rapid Enter presses can never double-submit.
+ * editable and rapid Enter presses can never double-submit. A cursor tracks
+ * the next expected position: typing a letter that matches a locked position
+ * (revealed first letter, hint, carried-forward letter) advances past it, so
+ * typing the complete word behaves intuitively, while backspace never
+ * corrupts locked hints.
  */
 export function useGuessInput({
   enabled,
   fixedPositions,
+  length = DEFAULT_LENGTH,
   onSubmit,
 }: {
   enabled: boolean;
@@ -25,13 +33,21 @@ export function useGuessInput({
   fixedPositions: (string | null)[];
   /** Return true when the guess was accepted; false keeps the word editable. */
   onSubmit: (word: string) => boolean;
+  length?: number;
 }) {
   const [buffer, setBuffer] = useState<(string | null)[]>(() =>
-    normalizeLength(fixedPositions.map((f, i) => (f || i === 0 ? f : null))),
+    normalizeLength(
+      fixedPositions.map((f) => f ?? null),
+      length,
+    ),
   );
   const [shakeTick, setShakeTick] = useState(0);
   const bufferRef = useRef(buffer);
   const enabledRef = useRef(enabled);
+  const fixedRef = useRef(fixedPositions);
+  const prevFixedRef = useRef<(string | null)[]>([]);
+  /** Next position the player is expected to type at. */
+  const cursorRef = useRef(0);
 
   useEffect(() => {
     bufferRef.current = buffer;
@@ -41,62 +57,96 @@ export function useGuessInput({
     enabledRef.current = enabled;
   }, [enabled]);
 
-  // Keep the buffer in sync with fixed positions (first letter, revealed
-  // hints) whenever they change, e.g. when a new round starts.
+  // Keep the buffer in sync with fixed positions whenever they change:
+  // locked letters are written in, and letters locked by a previous round are
+  // cleared when a new round unlocks their position.
   useEffect(() => {
+    const prevFixed = prevFixedRef.current;
+    fixedRef.current = fixedPositions;
     setBuffer((prev) => {
-      const next = normalizeLength(prev);
+      const next = normalizeLength(prev, length);
       let changed = false;
       fixedPositions.forEach((f, i) => {
-        const desired = i === 0 ? (f || null) : f;
-        if (desired !== null && next[i] !== desired) {
-          next[i] = desired;
+        if (f !== null && next[i] !== f) {
+          next[i] = f;
+          changed = true;
+        } else if (
+          f === null &&
+          prevFixed[i] !== null &&
+          next[i] === prevFixed[i]
+        ) {
+          next[i] = null;
           changed = true;
         }
       });
       return changed ? next : prev;
     });
-  }, [fixedPositions]);
+    prevFixedRef.current = fixedPositions;
+    cursorRef.current = Math.min(cursorRef.current, length);
+  }, [fixedPositions, length]);
 
   const append = useCallback(
     (raw: string) => {
       if (!enabledRef.current) return;
       const ch = raw.toLowerCase();
-      const prev = normalizeLength(bufferRef.current);
-      const typedCount = prev.filter(
-        (c, i) => c !== null && !fixedPositions[i],
-      ).length;
-      if (typedCount === 0 && fixedPositions[0] && ch === fixedPositions[0]) {
-        // The prefilled first letter is already shown; ignore re-typing it.
+      const prev = normalizeLength(bufferRef.current, length);
+      const fixed = fixedRef.current;
+      let cursor = Math.min(cursorRef.current, length);
+      // Typing the letter shown at a locked position "consumes" it: the
+      // letter is already visible, so the keystroke only advances the cursor.
+      let consumed = false;
+      while (cursor < length && fixed[cursor] !== null && fixed[cursor] === ch) {
+        consumed = true;
+        cursor += 1;
+      }
+      if (consumed) {
+        cursorRef.current = cursor;
         return;
       }
+      if (cursor >= length) return;
       const next = [...prev];
-      const firstEmpty = next.findIndex(
-        (c, i) => c === null && !fixedPositions[i],
-      );
-      if (firstEmpty === -1) return;
-      next[firstEmpty] = ch;
+      if (fixed[cursor] !== null || next[cursor] !== null) {
+        // The cursor sits on a locked letter the typed key does not match
+        // (or an already-filled cell): place the letter in the next free
+        // editable position so the row always shows what will be submitted.
+        let target = -1;
+        for (let i = cursor; i < length; i++) {
+          if (next[i] === null && fixed[i] === null) {
+            target = i;
+            break;
+          }
+        }
+        if (target === -1) return;
+        next[target] = ch;
+        cursor = target + 1;
+      } else {
+        next[cursor] = ch;
+        cursor += 1;
+      }
       bufferRef.current = next;
+      cursorRef.current = cursor;
       setBuffer(next);
     },
-    [fixedPositions],
+    [length],
   );
 
   const backspace = useCallback(() => {
     if (!enabledRef.current) return;
-    const prev = normalizeLength(bufferRef.current);
+    const prev = normalizeLength(bufferRef.current, length);
+    const fixed = fixedRef.current;
+    let i = Math.min(cursorRef.current, length) - 1;
+    while (i >= 0 && (prev[i] === null || fixed[i] !== null)) i--;
+    if (i < 0) return; // nothing editable to delete; locked hints stay intact
     const next = [...prev];
-    let i = next.length - 1;
-    while (i >= 0 && (next[i] === null || fixedPositions[i])) i--;
-    if (i < 0) return;
     next[i] = null;
+    cursorRef.current = i;
     bufferRef.current = next;
     setBuffer(next);
-  }, [fixedPositions]);
+  }, [length]);
 
   const submit = useCallback((): boolean => {
     if (!enabledRef.current) return false;
-    const current = normalizeLength(bufferRef.current);
+    const current = normalizeLength(bufferRef.current, length);
     if (current.some((c) => c === null)) {
       setShakeTick((t) => t + 1);
       return false;
@@ -105,13 +155,15 @@ export function useGuessInput({
     if (accepted) {
       // Clear editable letters synchronously (fixed positions stay put).
       const next = normalizeLength(
-        fixedPositions.map((f, i) => (f || i === 0 ? f : null)),
+        fixedRef.current.map((f) => f ?? null),
+        length,
       );
+      cursorRef.current = 0;
       bufferRef.current = next;
       setBuffer(next);
     }
     return accepted;
-  }, [fixedPositions, onSubmit]);
+  }, [length, onSubmit]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -140,6 +192,6 @@ export function useGuessInput({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [append, backspace, submit]);
 
-  const full = buffer.every((c) => c !== null) && buffer.length === LENGTH;
+  const full = buffer.every((c) => c !== null) && buffer.length === length;
   return { buffer, full, shakeTick, append, backspace, submit };
 }

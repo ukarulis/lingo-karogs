@@ -56,7 +56,12 @@ export function LingoApp() {
       {mode === "daily" ? <DailyMode palette={palette} /> : null}
       {mode === "endless" ? <EndlessMode palette={palette} /> : null}
       {mode === "arcade" ? <ArcadeMode palette={palette} /> : null}
-      <p className="mx-auto mt-8 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-stone-400 dark:text-stone-500">
+      <p className="mx-auto mt-5 max-w-md text-center text-xs text-stone-500 dark:text-stone-400">
+        {mode === "arcade"
+          ? "Klasiskajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam."
+          : "Brīvais minējums: der jebkura 5 burtu kombinācija — tai nav jābūt vārdnīcā."}
+      </p>
+      <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-center text-xs text-stone-400 dark:text-stone-500">
         <Palette className="size-3.5" aria-hidden />
         {settings.palette === "legacy"
           ? "Ieslēgta vēsturiskā krāsu shēma (sarkans = pareizi, zaļš = burta nav)."

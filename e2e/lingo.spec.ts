@@ -36,7 +36,7 @@ test.describe("Lingo", () => {
   test("completes a daily Lingo loss", async ({ page }) => {
     await page.goto("/lingo?word=ābols");
     await skipOnboarding(page);
-    for (const w of ["ābele", "ādene", "ādere", "āksts", "āmurs"]) {
+    for (const w of ["ālsoa", "ādene", "ādere", "āksts", "āmurs"]) {
       await typeWord(page, w);
       await pressEnter(page);
     }
@@ -69,7 +69,9 @@ test.describe("Lingo", () => {
   test("clears editable input after an accepted guess", async ({ page }) => {
     await page.goto("/lingo?word=ābols");
     await skipOnboarding(page);
-    await typeWord(page, "ābele");
+    // "ālsoa" locks nothing beyond the revealed first letter, so the current
+    // row keeps the hint plus four editable empty cells after the accept.
+    await typeWord(page, "ālsoa");
     await pressEnter(page);
     await page.waitForTimeout(700);
     // The submitted row is done; the current row keeps only the hint letter.
@@ -83,6 +85,35 @@ test.describe("Lingo", () => {
     await pressEnter(page);
     await page.waitForTimeout(300);
     await expect(empties).toHaveCount(19);
+  });
+
+  test("carries confirmed letters into the next row", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    // "ābele" vs "ābols": positions 0, 1 and 3 are correct and become locked.
+    await typeWord(page, "ābele");
+    await pressEnter(page);
+    await page.waitForTimeout(700);
+    const group = page.getByRole("group", { name: "Spēles laukums" });
+    // Done row (5) + current row with 3 locked hints and 2 empty cells
+    // + 3 untouched rows (15) = 17 empty cells.
+    await expect(group.getByLabel("Tukšs lauciņš")).toHaveCount(17);
+    await expect(group.getByLabel("b").first()).toBeVisible();
+    await expect(group.getByLabel("l").first()).toBeVisible();
+  });
+
+  test("daily freeform accepts an invented sequence and consumes one attempt", async ({ page }) => {
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    await typeWord(page, "ābcde");
+    await pressEnter(page);
+    await page.waitForTimeout(700);
+    // The invented sequence was accepted: exactly one submitted row exists.
+    await expect(
+      page.getByRole("group", { name: "Spēles laukums" }).getByLabel(/pareizi|citā vietā|nav vārdā/),
+    ).toHaveCount(5);
+    await expect(page.getByText("Šāds vārds nav vārdnīcā")).toBeHidden();
+    await expect(page.getByText("1 mēģinājumi izmantoti")).toBeAttached();
   });
 
   test("reports duplicates without consuming an attempt", async ({ page }) => {
@@ -100,9 +131,10 @@ test.describe("Lingo", () => {
     ).toHaveCount(5);
   });
 
-  test("keeps an invalid word editable for correction", async ({ page }) => {
-    await page.goto("/lingo?word=ābols");
+  test("classic dictionary policy keeps an invalid word editable for correction", async ({ page }) => {
+    await page.goto("/lingo?arcadeword=ābols&arcadelives=5");
     await skipOnboarding(page);
+    await page.getByRole("radio", { name: "Klasiskais Lingo" }).click();
     await typeWord(page, "ābcde");
     await pressEnter(page);
     await expect(page.getByText("Šāds vārds nav vārdnīcā")).toBeVisible();
@@ -111,5 +143,57 @@ test.describe("Lingo", () => {
     await expect(
       page.getByRole("group", { name: "Spēles laukums" }).getByLabel("Tukšs lauciņš"),
     ).toHaveCount(21);
+    // No attempt was consumed.
+    await expect(page.getByLabel("5 dzīvības no 10")).toBeAttached();
+  });
+
+  test("recovers a legacy daily save with duplicate guesses and blocks further duplicates", async ({ page }) => {
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Riga",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    await page.addInitScript(
+      ({ saveDate }) => {
+        const row = ["correct", "correct", "absent", "correct", "absent"];
+        const now = new Date().toISOString();
+        window.localStorage.setItem(
+          "lk.lingoDaily",
+          JSON.stringify({
+            v: 2,
+            createdAt: now,
+            updatedAt: now,
+            status: "playing",
+            data: {
+              date: saveDate,
+              round: {
+                mode: "daily",
+                target: "ābols",
+                firstLetter: "ā",
+                guesses: ["ābele", "ābele"],
+                results: [row, row],
+                revealed: [false, false, false, false, false],
+                status: "playing",
+                attemptsUsed: 2,
+              },
+            },
+          }),
+        );
+      },
+      { saveDate: today },
+    );
+    await page.goto("/lingo?word=ābols");
+    await skipOnboarding(page);
+    const labeled = page
+      .getByRole("group", { name: "Spēles laukums" })
+      .getByLabel(/pareizi|citā vietā|nav vārdā/);
+    // Both duplicated legacy rows render.
+    await expect(labeled).toHaveCount(10);
+    // Re-submitting the same word is blocked and consumes no attempt.
+    await typeWord(page, "ābele");
+    await pressEnter(page);
+    await expect(page.getByText("Šo vārdu jau mēģināji.")).toBeVisible();
+    await expect(labeled).toHaveCount(10);
   });
 });

@@ -9,7 +9,9 @@ import { useGuessInput } from "./use-guess-input";
 import {
   type LingoRound,
   createRound,
+  fixedLetters,
   keyboardEvidence,
+  normalizeRound,
   submitGuess,
 } from "@/lib/lingo/engine";
 import { guessSet, pickTarget } from "@/lib/lingo/words";
@@ -53,9 +55,17 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
 
   useEffect(() => {
     let stored = loadGame<EndlessState>("lingoEndless", isEndlessState)?.data ?? null;
-    if (!stored || !stored.round) {
+    const restoredRound = stored ? normalizeRound(stored.round) : null;
+    if (!stored || !restoredRound) {
       const target = pickTarget();
-      stored = { round: createRound(target, "endless"), recent: [target], streak: 0, bestStreak: 0 };
+      stored = {
+        round: createRound(target, "endless"),
+        recent: [target],
+        streak: 0,
+        bestStreak: 0,
+      };
+    } else {
+      stored = { ...stored, round: restoredRound };
     }
     setState(stored);
   }, []);
@@ -67,10 +77,7 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
   const round = state?.round ?? null;
   const finished = round?.status !== "playing" && round != null;
 
-  const fixed = useMemo(
-    () => (round ? Array.from({ length: 5 }, (_, i) => (i === 0 ? round.firstLetter : null)) : []),
-    [round],
-  );
+  const fixed = useMemo(() => (round ? fixedLetters(round) : []), [round]);
 
   const { buffer, shakeTick, append, backspace, submit } = useGuessInput({
     enabled: !!round && round.status === "playing",
@@ -125,7 +132,9 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
           state: "current" as const,
           shake: shakeTick > 0,
           cells: Array.from({ length: 5 }, (_, c) => {
-            if (c === 0) return { letter: round.firstLetter, status: "empty" as const, state: "hint" as const };
+            if (fixed[c]) {
+              return { letter: fixed[c], status: "empty" as const, state: "hint" as const };
+            }
             return {
               letter: buffer[c] ?? null,
               status: "empty" as const,
@@ -136,7 +145,7 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
       }
       return { state: "empty" as const, cells: Array.from({ length: 5 }, () => ({ letter: null, status: "empty" as const, state: "idle" as const })) };
     });
-  }, [round, buffer, shakeTick]);
+  }, [round, buffer, fixed, shakeTick]);
 
   const evidence = useMemo(
     () => (round ? keyboardEvidence(round.guesses, round.results) : {}),

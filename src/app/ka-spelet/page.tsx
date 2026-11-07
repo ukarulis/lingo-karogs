@@ -60,6 +60,12 @@ export default function KaSpeletPage() {
             Visiem spēlētājiem viens un tas pats vārds katrā kalendāra dienā (pēc
             Latvijas laika). Rezultātu vari kopīgot, neatklājot atbildi.
           </p>
+          <p className="mt-3">
+            Dienas un neierobežotajā spēlē darbojas{" "}
+            <b>brīvais minējums</b>: der jebkura 5 burtu kombinācija no
+            latviešu alfabēta, ne tikai vārdnīcā esoši vārdi. Pareizi
+            uzminētie burti automātiski parādās nākamajās rindās.
+          </p>
           <p className="mt-3 font-semibold">Neierobežotā spēle</p>
           <p>
             Bezgalīgi nejauši vārdi, uzreiz nākamais pēc katra raunda. Sērija tiek
@@ -72,7 +78,7 @@ export default function KaSpeletPage() {
             dzīvību; atminējums ar <b>pirmo</b> mēģinājumu dod papildu dzīvību.
             Punktu formula: 1. mēģinājums — 500, 2. — 400, 3. — 300, 4. — 250,
             5. — 200 punktu; neveiksme — 0. Palīdzība atklāj vienu vēl nezināmu
-            burtu.
+            burtu. Šajā režīmā katram minējumam jābūt vārdnīcā esošam vārdam.
           </p>
         </Section>
 
