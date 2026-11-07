@@ -185,6 +185,11 @@ async function readyBoth(
       await typeMp(a, first + fillerA);
       await typeMp(b, first + fillerB);
       await a.waitForTimeout(300);
+      const ta = await a.locator("wa-toast-item").allInnerTexts();
+      const tb = await b.locator("wa-toast-item").allInnerTexts();
+      if (ta.length || tb.length) {
+        console.log("toasts A:", JSON.stringify(ta), "B:", JSON.stringify(tb));
+      }
     }
     if (round < 4) {
       await a

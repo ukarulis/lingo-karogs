@@ -145,6 +145,8 @@ export function OnlineMode({
   const pendingGuessRef = useRef<{ actionId: string; word: string } | null>(
     null,
   );
+  const queuedGuessRef = useRef<string | null>(null);
+  const latestFixedRef = useRef<(string | null)[]>([]);
 
   const now = useCallback(() => Date.now() + clockOffset, [clockOffset]);
 
@@ -305,7 +307,13 @@ export function OnlineMode({
   };
 
   const submitGuess = (word: string): boolean => {
-    if (!session || submittingRef.current) return false;
+    if (!session) return false;
+    if (submittingRef.current) {
+      // Serialize: remember the word; it is submitted right after the
+      // in-flight guess resolves (if the buffer still holds it).
+      queuedGuessRef.current = word;
+      return false;
+    }
     // A lost response is retried with the same action ID so the server can
     // never apply the same guess twice.
     const actionId =
@@ -355,12 +363,22 @@ export function OnlineMode({
       } finally {
         submittingRef.current = false;
         setSubmitting(false);
+        const queued = queuedGuessRef.current;
+        queuedGuessRef.current = null;
+        if (
+          queued &&
+          (buffer.every((c) => c === null) ||
+            bufferHoldsWord(buffer, latestFixedRef.current, queued))
+        ) {
+          submitGuess(queued);
+        }
       }
     })();
     return false;
   };
 
   const fixed = useMemo(() => (view ? fixedForRound(view) : []), [view]);
+  latestFixedRef.current = fixed;
   const { buffer, shakeTick, append, backspace, submit, reset } = useGuessInput({
     enabled:
       !!view &&
