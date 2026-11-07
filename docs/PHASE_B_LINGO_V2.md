@@ -117,6 +117,18 @@ spainī — turpmāk režīmi ir pilnībā nodalīti.
 
 ## Ražošana
 
-Izvietošanas statuss tiek norādīts šī ziņojuma versijā pēc Vercel
-izvietošanas un pārbaudēm: sk. "Ražošanas izvietošanas statuss" sadaļu
-zemāk (atjaunināta pēc palaišanas).
+**Izvietots ražošanā.** Vercel izvietojums `dpl_A4uunmRBWPc7H1jfMLC4twWgca2m`
+(statuss READY), publiskā adrese https://lingo-karogs.vercel.app.
+
+Pārbaudes pret ražošanu:
+
+- `scripts/smoke-production.mjs` — 9/9.
+- `scripts/verify-production.mjs` — 5/5 (Karogs un kopējās lapas neskartas).
+- Reāla pārlūkprogramma: pilni raundi **visos četros garumos** (4, 5, 6 un 7
+  burti) — katrs raunds pabeigts ar 5 brīvajiem minējumiem, tāfelei ir
+  pareizs kolonnu skaits, bez lapas kļūdām; statistikas lapā katram
+  garumam reģistrētas spēles.
+
+## Gala komits
+
+`00d01b8` (dokumentācija un ekrānuzņēmumi) virs `b74ab3c` (implementācija).
