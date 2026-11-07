@@ -27,7 +27,7 @@ import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { recordKarogsGame } from "@/lib/store/karogsStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageRemove, storageSet } from "@/lib/store/storage";
+import { loadGame, saveGame, storageRemove } from "@/lib/store/storage";
 
 type LocalPhase = "setup-red" | "setup-blue" | "playing" | "finished";
 
@@ -35,6 +35,19 @@ interface Curtain {
   title: string;
   text: string;
   nextViewer: Side;
+}
+
+interface LocalSave {
+  state: GameState;
+  phase: LocalPhase;
+  redPlacement: Record<number, Piece>;
+  bluePlacement: Record<number, Piece>;
+}
+
+function isLocalSave(raw: unknown): raw is LocalSave {
+  if (!raw || typeof raw !== "object") return false;
+  const s = raw as Partial<LocalSave>;
+  return !!s.state && Array.isArray(s.state.board) && !!s.phase;
 }
 
 export function LocalGame() {
@@ -63,18 +76,13 @@ export function LocalGame() {
   });
 
   useEffect(() => {
-    const stored = storageGet<{
-      state: GameState;
-      phase: LocalPhase;
-      redPlacement: Record<number, Piece>;
-      bluePlacement: Record<number, Piece>;
-    }>("karogsLocalGame");
+    const stored = loadGame<LocalSave>("karogsLocalGame", isLocalSave)?.data ?? null;
     if (stored?.state) {
       setState(stored.state);
       setPhase(stored.phase);
       if (stored.state.phase === "setup") {
-        setRedPlacement(stored.state.setups.red ?? {});
-        setBluePlacement(stored.state.setups.blue ?? {});
+        setRedPlacement(stored.redPlacement ?? {});
+        setBluePlacement(stored.bluePlacement ?? {});
       }
     } else {
       setState(createGame());
@@ -83,7 +91,11 @@ export function LocalGame() {
 
   useEffect(() => {
     if (state) {
-      storageSet("karogsLocalGame", { state, phase, redPlacement, bluePlacement });
+      saveGame(
+        "karogsLocalGame",
+        { state, phase, redPlacement, bluePlacement },
+        state.phase,
+      );
     }
   }, [state, phase, redPlacement, bluePlacement]);
 

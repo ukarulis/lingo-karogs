@@ -41,7 +41,7 @@ export const Keyboard = memo(function Keyboard({
               : r === 1
                 ? "grid-cols-10"
                 : r === 2
-                  ? "grid-cols-[0.5fr_repeat(9,1fr)_0.5fr]"
+                  ? "grid-cols-9 px-3.5"
                   : "grid-cols-[1.5fr_repeat(7,1fr)_1.5fr]",
           )}
         >

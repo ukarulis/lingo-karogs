@@ -1,31 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, LineChart, Sparkles, Type, Flag } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, BookOpen, LineChart, Sparkles } from "lucide-react";
 import { GameCards } from "@/components/home/game-cards";
 
 export default function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16">
-      <section className="mx-auto max-w-2xl pt-14 pb-10 text-center sm:pt-20">
-        <div className="mb-5 flex justify-center" aria-hidden>
-          <div className="grid grid-cols-3 gap-1 rounded-2xl border border-stone-200 bg-white p-2 shadow-sm dark:border-stone-800 dark:bg-stone-900">
-            {[
-              ["L", "bg-emerald-600"],
-              ["I", "bg-amber-400 text-stone-900"],
-              ["N", "bg-stone-300 text-stone-700"],
-            ].map(([letter, color]) => (
-              <span
-                key={letter}
-                className={`grid size-9 place-items-center rounded-lg text-lg font-black text-white ${color}`}
-              >
-                {letter}
-              </span>
-            ))}
-          </div>
-          <div className="-ml-1 grid size-9 place-items-center self-end rounded-lg bg-red-600 text-lg font-black text-white shadow-sm" aria-hidden>
-            K
-          </div>
-        </div>
+      <section className="mx-auto max-w-2xl pt-12 pb-8 text-center sm:pt-16">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300">
           <Sparkles className="size-3.5" aria-hidden />
           Atdzimst leģendāras latviešu spēles
@@ -40,16 +20,6 @@ export default function HomePage() {
           Atmini vārdus, slepeni izvieto savu armiju un izcīni uzvaru — bez reģistrācijas,
           uz jebkuras ierīces.
         </p>
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" href="/lingo">
-            <Type className="size-4" aria-hidden />
-            Spēlēt Lingo
-          </Button>
-          <Button size="lg" variant="danger" href="/karogs">
-            <Flag className="size-4" aria-hidden />
-            Spēlēt Karogs
-          </Button>
-        </div>
       </section>
 
       <GameCards />

@@ -23,7 +23,18 @@ import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/use-settings";
 import { loadLingoStats, recordArcade } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageSet } from "@/lib/store/storage";
+import { loadGame, saveGame } from "@/lib/store/storage";
+
+function isArcadeSession(raw: unknown): raw is ArcadeSession {
+  if (!raw || typeof raw !== "object") return false;
+  const s = raw as Partial<ArcadeSession>;
+  return (
+    !!s.current &&
+    typeof s.current.target === "string" &&
+    typeof s.lives === "number" &&
+    Array.isArray(s.history)
+  );
+}
 
 function Hearts({ lives }: { lives: number }) {
   return (
@@ -51,7 +62,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
   const [settings] = useSettings();
 
   useEffect(() => {
-    const stored = storageGet<ArcadeSession>("lingoArcade");
+    const stored = loadGame<ArcadeSession>("lingoArcade", isArcadeSession)?.data ?? null;
     const params = new URLSearchParams(window.location.search);
     if (process.env.NEXT_PUBLIC_E2E) {
       const forcedWord = params.get("arcadeword");
@@ -73,7 +84,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
   }, []);
 
   useEffect(() => {
-    if (session) storageSet("lingoArcade", session);
+    if (session) saveGame("lingoArcade", session, session.over ? "over" : session.current.status);
   }, [session]);
 
   const round = session?.current ?? null;

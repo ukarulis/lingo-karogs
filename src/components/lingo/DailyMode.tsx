@@ -26,7 +26,24 @@ import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/use-settings";
 import { dailyStreaks, loadLingoStats, recordDaily } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageSet } from "@/lib/store/storage";
+import { loadGame, saveGame } from "@/lib/store/storage";
+
+interface DailySave {
+  date: string;
+  round: LingoRound;
+}
+
+function isDailySave(raw: unknown): raw is DailySave {
+  if (!raw || typeof raw !== "object") return false;
+  const d = raw as Partial<DailySave>;
+  return (
+    typeof d.date === "string" &&
+    !!d.round &&
+    typeof d.round.target === "string" &&
+    Array.isArray(d.round.guesses) &&
+    Array.isArray(d.round.results)
+  );
+}
 
 function countdownParts(ms: number): { h: number; m: number; s: number } {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -47,9 +64,9 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
       const forced = new URLSearchParams(window.location.search).get("word");
       if (forced && /^[a-zāčēģīķļņšūž]{5}$/.test(forced)) target = forced;
     }
-    const stored = storageGet<{ date: string; round: LingoRound }>("lingoDaily");
-    if (stored?.date === today && stored.round?.target === target) {
-      setRound(stored.round);
+    const stored = loadGame<DailySave>("lingoDaily", isDailySave);
+    if (stored?.data.date === today && stored.data.round.target === target) {
+      setRound(stored.data.round);
     } else {
       setRound(createRound(target, "daily"));
     }
@@ -57,7 +74,7 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
   }, []);
 
   useEffect(() => {
-    if (round) storageSet("lingoDaily", { date: today, round });
+    if (round) saveGame("lingoDaily", { date: today, round }, round.status);
   }, [round, today]);
 
   useEffect(() => {

@@ -18,7 +18,7 @@ import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { recordEndless } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageSet } from "@/lib/store/storage";
+import { loadGame, saveGame } from "@/lib/store/storage";
 
 interface EndlessState {
   round: LingoRound;
@@ -36,12 +36,23 @@ function newWord(state: EndlessState): EndlessState {
   };
 }
 
+function isEndlessState(raw: unknown): raw is EndlessState {
+  if (!raw || typeof raw !== "object") return false;
+  const s = raw as Partial<EndlessState>;
+  return (
+    !!s.round &&
+    typeof s.round.target === "string" &&
+    Array.isArray(s.round.guesses) &&
+    Array.isArray(s.recent)
+  );
+}
+
 export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor> }) {
   const [state, setState] = useState<EndlessState | null>(null);
   const { push } = useToast();
 
   useEffect(() => {
-    let stored = storageGet<EndlessState>("lingoEndless");
+    let stored = loadGame<EndlessState>("lingoEndless", isEndlessState)?.data ?? null;
     if (!stored || !stored.round) {
       const target = pickTarget();
       stored = { round: createRound(target, "endless"), recent: [target], streak: 0, bestStreak: 0 };
@@ -50,7 +61,7 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
   }, []);
 
   useEffect(() => {
-    if (state) storageSet("lingoEndless", state);
+    if (state) saveGame("lingoEndless", state, state.round.status);
   }, [state]);
 
   const round = state?.round ?? null;

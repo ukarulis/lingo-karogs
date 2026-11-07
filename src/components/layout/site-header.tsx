@@ -18,13 +18,13 @@ const NAV = [
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2" aria-label="Lingo & Karogs sākums">
-      <span className="flex -space-x-1.5" aria-hidden>
-        <span className="grid size-7 place-items-center rounded-lg bg-emerald-600 text-sm font-black text-white shadow-sm">
-          L
-        </span>
-        <span className="grid size-7 place-items-center rounded-lg bg-red-600 text-sm font-black text-white shadow-sm">
-          K
-        </span>
+      <span
+        className="relative grid size-8 place-items-center overflow-hidden rounded-xl shadow-sm"
+        aria-hidden
+      >
+        <span className="absolute inset-0 bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-400" />
+        <span className="absolute -right-2 -bottom-2 size-6 rotate-45 rounded-md bg-red-600" />
+        <span className="relative text-sm font-black tracking-tighter text-white">LK</span>
       </span>
       <span className="text-lg font-extrabold tracking-tight">Lingo &amp; Karogs</span>
     </Link>
@@ -39,6 +39,15 @@ export function SiteHeader() {
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   const isDark =
     settings.theme === "dark" ||
@@ -55,10 +64,11 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={pathname.startsWith(item.href) ? "page" : undefined}
               className={cn(
                 "rounded-lg px-3 py-2 text-sm font-semibold transition hover:bg-stone-100 dark:hover:bg-stone-800",
                 pathname.startsWith(item.href)
-                  ? "text-indigo-700 dark:text-indigo-300"
+                  ? "bg-stone-100 text-indigo-700 dark:bg-stone-800 dark:text-indigo-300"
                   : "text-stone-600 dark:text-stone-300",
               )}
             >
@@ -101,7 +111,13 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800"
+              aria-current={pathname.startsWith(item.href) ? "page" : undefined}
+              className={cn(
+                "block rounded-lg px-3 py-3 text-base font-semibold",
+                pathname.startsWith(item.href)
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                  : "text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800",
+              )}
             >
               {item.label}
             </Link>

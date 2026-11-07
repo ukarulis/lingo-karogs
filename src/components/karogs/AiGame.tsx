@@ -31,7 +31,7 @@ import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { recordKarogsGame } from "@/lib/store/karogsStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageRemove, storageSet } from "@/lib/store/storage";
+import { loadGame, saveGame, storageRemove } from "@/lib/store/storage";
 
 /** E2E-only deterministic scenario: red scout has a clear path to blue flag. */
 function scenarioOpenFlag(): GameState {
@@ -64,6 +64,17 @@ function defaultPlacement(): Record<number, Piece> {
   return formation ? applyFormation(formation, "red", Math.random) : {};
 }
 
+interface AiSave {
+  state: GameState;
+  placement: Record<number, Piece>;
+}
+
+function isAiSave(raw: unknown): raw is AiSave {
+  if (!raw || typeof raw !== "object") return false;
+  const s = raw as Partial<AiSave>;
+  return !!s.state && Array.isArray(s.state.board) && !!s.state.phase && !!s.placement;
+}
+
 type AiGameState = "setup" | "playing" | "finished";
 
 export function AiGame({
@@ -87,9 +98,7 @@ export function AiGame({
   });
 
   useEffect(() => {
-    const stored = storageGet<{ state: GameState; placement: Record<number, Piece> }>(
-      "karogsAiGame",
-    );
+    const stored = loadGame<AiSave>("karogsAiGame", isAiSave)?.data ?? null;
     if (stored?.state) {
       setResumeNotice(true);
       if (stored.state.phase === "setup") {
@@ -113,7 +122,11 @@ export function AiGame({
 
   useEffect(() => {
     if (state || Object.keys(placement).length > 0) {
-      storageSet("karogsAiGame", { state, placement });
+      saveGame(
+        "karogsAiGame",
+        { state: state ?? createGame(), placement },
+        state?.phase ?? "setup",
+      );
     }
   }, [state, placement]);
 

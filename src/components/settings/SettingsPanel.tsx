@@ -1,20 +1,71 @@
 "use client";
 
-import { useState } from "react";
-import { Moon, Palette, ShieldCheck, Trash2, Volume2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Gamepad2,
+  Moon,
+  Palette,
+  ShieldCheck,
+  Trash2,
+  Volume2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Segmented } from "@/components/ui/segmented";
 import { Switch } from "@/components/ui/switch";
 import { Dialog } from "@/components/ui/dialog";
 import { useSettings } from "@/lib/use-settings";
-import { clearGuestData } from "@/lib/store/storage";
+import {
+  clearGuestData,
+  peekGameSave,
+  storageRemove,
+} from "@/lib/store/storage";
 import { useToast } from "@/lib/toast";
+
+const SAVED_GAMES = [
+  { key: "lingoDaily", label: "Lingo · dienas vārds", href: "/lingo" },
+  { key: "lingoEndless", label: "Lingo · neierobežotā spēle", href: "/lingo" },
+  { key: "lingoArcade", label: "Lingo · klasiskais", href: "/lingo" },
+  { key: "karogsAiGame", label: "Karogs · pret datoru", href: "/karogs" },
+  { key: "karogsLocalGame", label: "Karogs · divatā", href: "/karogs" },
+] as const;
+
+function statusLabel(status: string | null): string {
+  switch (status) {
+    case "playing":
+      return "Notiek spēle";
+    case "setup":
+      return "Sagatavošanās";
+    case "won":
+    case "lost":
+    case "finished":
+    case "over":
+      return "Pabeigta";
+    default:
+      return "Saglabāta";
+  }
+}
 
 export function SettingsPanel() {
   const [settings, update] = useSettings();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [savesTick, setSavesTick] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
   const { push } = useToast();
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const activeSaves = useMemo(
+    () =>
+      SAVED_GAMES.map((g) => ({ ...g, meta: peekGameSave(g.key) })).filter(
+        (g) => g.meta !== null,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [savesTick, hydrated],
+  );
 
   return (
     <div className="space-y-4">
@@ -120,6 +171,56 @@ export function SettingsPanel() {
           <Trash2 className="size-4" aria-hidden />
           Dzēst visus vietējos datus
         </Button>
+      </Card>
+
+      <Card className="p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <Gamepad2 className="size-4 text-indigo-500" aria-hidden />
+          Spēļu progress
+        </h2>
+        {activeSaves.length === 0 ? (
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+            Nav saglabātu spēļu. Sāc spēli, un tā automātiski saglabāsies šajā ierīcē.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {activeSaves.map((game) => (
+              <li
+                key={game.key}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-stone-100 px-3 py-2.5 dark:bg-stone-800"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{game.label}</span>
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">
+                    {statusLabel(game.meta?.status ?? null)}
+                  </span>
+                </span>
+                <span className="flex shrink-0 gap-1.5">
+                  <Link
+                    href={game.href}
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-500"
+                  >
+                    Turpināt spēli
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      storageRemove(game.key);
+                      setSavesTick((t) => t + 1);
+                      push("Spēles progress izdzēsts", "info");
+                    }}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold text-stone-600 transition hover:bg-stone-200 dark:text-stone-300 dark:hover:bg-stone-700"
+                  >
+                    Dzēst progresu
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-stone-400 dark:text-stone-500">
+          Progresa dzēšana neietekmē statistiku un sasniegumus.
+        </p>
       </Card>
 
       <Dialog

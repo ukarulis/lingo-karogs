@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Award,
   CalendarCheck,
@@ -55,7 +56,7 @@ function GuessDistribution({ stats }: { stats: LingoStats }) {
           <div key={i} className="flex items-center gap-2 text-xs font-semibold">
             <span className="w-4 text-right tabular-nums text-stone-400">{i + 1}</span>
             <WaProgressBar
-              className="flex-1"
+              className="min-w-0 flex-1"
               value={Math.max(count > 0 ? 8 : 0, (count / max) * 100)}
             >
               {count > 0 ? count : ""}
@@ -129,7 +130,7 @@ function KarogsSection() {
             return (
               <div key={label} className="flex items-center gap-2 text-xs font-semibold">
                 <span className="w-32 shrink-0 text-stone-500 dark:text-stone-400">{label}</span>
-                <WaProgressBar className="flex-1" value={pct}>
+                <WaProgressBar className="min-w-0 flex-1" value={pct}>
                   {pct > 18 ? `${row.wins}/${row.games}` : ""}
                 </WaProgressBar>
                 <span className="w-16 text-right tabular-nums text-stone-400">
@@ -270,6 +271,10 @@ function Leaderboard() {
 }
 
 export function StatsPage() {
+  const lingo = loadLingoStats();
+  const lingoTotal = lingo.endless.total + Object.keys(lingo.daily).length + lingo.arcade.sessions;
+  const karogs = karogsAggregates(loadKarogsStats());
+  const hasData = lingoTotal > 0 || karogs.games > 0;
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="mb-1 text-2xl font-black tracking-tight sm:text-3xl">Statistika</h1>
@@ -277,8 +282,23 @@ export function StatsPage() {
         Personīgie rezultāti glabājas šajā ierīcē. Tiešsaistes tabulā iekļūst tikai
         servera verificētas tiešsaistes spēles.
       </p>
+      {!hasData ? (
+        <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Vēl nav nevienas spēles. Rezultāti parādīsies šeit pēc pirmās spēles.
+          </p>
+          <div className="flex gap-2">
+            <Link href="/lingo" className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-emerald-500">
+              Spēlēt Lingo
+            </Link>
+            <Link href="/karogs" className="rounded-lg bg-red-600 px-3.5 py-2 text-sm font-bold text-white transition hover:bg-red-500">
+              Spēlēt Karogu
+            </Link>
+          </div>
+        </Card>
+      ) : null}
       <div className="space-y-8">
-        <LingoSection stats={loadLingoStats()} />
+        <LingoSection stats={lingo} />
         <KarogsSection />
         <Achievements />
         <Leaderboard />
