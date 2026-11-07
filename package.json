@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "e2e:server": "npm run build && npm run start -- --port 3100",
     "gen:dict": "node scripts/generate-dictionary.mjs",
+    "gen:content": "node scripts/generate-content.mjs",
     "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {

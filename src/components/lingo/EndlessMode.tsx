@@ -34,6 +34,8 @@ import { useToast } from "@/lib/toast";
 import { recordEndless } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
 import { loadGame, saveGame, storageRemove } from "@/lib/store/storage";
+import { WordInfoCard } from "./WordInfoCard";
+import { loadBeginnerWords } from "@/lib/lingo/content";
 
 type LengthChoice = string; // "4" | "5" | "6" | "7" | "random"
 
@@ -48,6 +50,8 @@ interface EndlessState {
   streak: number;
   bestStreak: number;
   lastRandomLength: number | null;
+  /** Casual beginner-friendly pool toggle (does not change official rules). */
+  beginner: boolean;
 }
 
 const LENGTHS = enabledLengths();
@@ -97,6 +101,7 @@ function freshState(
     streak: 0,
     bestStreak: 0,
     lastRandomLength: null,
+    beginner: false,
   };
 }
 
@@ -146,6 +151,7 @@ async function loadChoice(choice: LengthChoice): Promise<EndlessState | null> {
       round,
       recentByLength: stored.recentByLength ?? {},
       lastRandomLength: stored.lastRandomLength ?? null,
+      beginner: stored.beginner ?? false,
     };
   }
   if (choice === "random") {
@@ -158,7 +164,10 @@ async function loadChoice(choice: LengthChoice): Promise<EndlessState | null> {
   return freshState(key, pool, {}, forcedTarget(pool));
 }
 
-async function nextRandomWord(state: EndlessState): Promise<EndlessState> {
+async function nextRandomWord(
+  state: EndlessState,
+  beginnerWords: ReadonlySet<string> | null,
+): Promise<EndlessState> {
   const choices = LENGTHS.filter((l) => l !== state.round.length);
   const poolChoices = choices.length > 0 ? choices : LENGTHS;
   const length =
@@ -166,7 +175,11 @@ async function nextRandomWord(state: EndlessState): Promise<EndlessState> {
   const pool = await loadPool(length);
   if (!pool) return state;
   const recent = state.recentByLength[length] ?? [];
-  const target = pickTargetFrom(pool, Math.random, new Set(recent));
+  const target = pickTargetFrom(
+    beginnerPool(pool, state.beginner, beginnerWords),
+    Math.random,
+    new Set(recent),
+  );
   return {
     ...state,
     round: createRound(target, "endless", { pack: latvianPack, length }),
@@ -179,8 +192,26 @@ async function nextRandomWord(state: EndlessState): Promise<EndlessState> {
   };
 }
 
-function nextFixedWord(state: EndlessState, pool: WordPool): EndlessState {
-  const target = pickTargetFrom(pool, Math.random, new Set(state.recent));
+function beginnerPool(
+  pool: WordPool,
+  beginner: boolean,
+  beginnerWords: ReadonlySet<string> | null,
+): WordPool {
+  if (!beginner || !beginnerWords) return pool;
+  const filtered = pool.targets.filter((w) => beginnerWords.has(w));
+  return filtered.length > 0 ? { ...pool, targets: filtered } : pool;
+}
+
+function nextFixedWord(
+  state: EndlessState,
+  pool: WordPool,
+  beginnerWords: ReadonlySet<string> | null,
+): EndlessState {
+  const target = pickTargetFrom(
+    beginnerPool(pool, state.beginner, beginnerWords),
+    Math.random,
+    new Set(state.recent),
+  );
   return {
     ...state,
     round: createRound(target, "endless", {
@@ -208,7 +239,20 @@ export function EndlessMode({
   const [state, setState] = useState<EndlessState | null>(null);
   const [guessSet, setGuessSet] = useState<ReadonlySet<string> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [beginnerWords, setBeginnerWords] = useState<ReadonlySet<string> | null>(
+    null,
+  );
   const { push } = useToast();
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadBeginnerWords().then((set) => {
+      if (!cancelled) setBeginnerWords(set);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -348,14 +392,14 @@ export function EndlessMode({
     if (!state) return;
     playSound("start");
     if (choice === "random") {
-      const next = await nextRandomWord(state);
+      const next = await nextRandomWord(state, beginnerWords);
       const nextPool = await loadPool(next.round.length);
       setPool(nextPool);
       setGuessSet(await getGuessSet(next.round.length));
       setState(next);
       return;
     }
-    if (pool) setState(nextFixedWord(state, pool));
+    if (pool) setState(nextFixedWord(state, pool, beginnerWords));
   };
 
   const restartSeries = async () => {
@@ -419,6 +463,17 @@ export function EndlessMode({
         <span aria-live="polite">
           Sērija: {state.streak} · Rekords: {state.bestStreak}
         </span>
+        <label className="inline-flex items-center gap-1.5 text-xs font-semibold">
+          <input
+            type="checkbox"
+            checked={state.beginner}
+            onChange={(e) =>
+              setState((s) => (s ? { ...s, beginner: e.target.checked } : s))
+            }
+            className="size-3.5 accent-emerald-600"
+          />
+          Viegli vārdi
+        </label>
       </div>
       <LingoBoard rows={rows} palette={palette} />
       <div className="mt-5">
@@ -450,6 +505,7 @@ export function EndlessMode({
               Restartēt sēriju
             </Button>
           </div>
+          <WordInfoCard word={round.target} />
         </div>
       ) : null}
     </div>

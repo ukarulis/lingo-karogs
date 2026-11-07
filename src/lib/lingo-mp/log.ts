@@ -21,10 +21,17 @@ export function mpError(
   error: unknown,
   fields: Record<string, unknown> = {},
 ): void {
-  const err = error as { code?: string; message?: string } | null;
+  const err = error as {
+    code?: string;
+    message?: string;
+    constraint?: string;
+    detail?: string;
+  } | null;
   mpLog(event, {
     ...fields,
     errorCode: err?.code ?? "unknown",
     errorMessage: err?.message?.slice(0, 120) ?? "unknown",
+    constraint: err?.constraint ?? undefined,
+    detail: err?.detail?.slice(0, 160) ?? undefined,
   });
 }

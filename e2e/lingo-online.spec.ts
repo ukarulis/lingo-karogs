@@ -76,6 +76,9 @@ test.describe("Lingo online multiplayer", () => {
     await expect(b.getByRole("group", { name: "Spēles laukums" })).toBeVisible({
       timeout: 20000,
     });
+    // No answer-related enrichment may leak while the round is active.
+    await expect(a.getByText("Avots: Tēzaurs.lv")).toHaveCount(0);
+    await expect(b.getByText("Avots: Tēzaurs.lv")).toHaveCount(0);
 
     // Anna solves in one guess; Berta needs two.
     await waitForInput(a);
@@ -88,8 +91,15 @@ test.describe("Lingo online multiplayer", () => {
     await expect(b.getByText("Pretinieks uzvarēja")).toBeVisible({
       timeout: 20000,
     });
-    await expect(a.getByText("ABRA")).toBeVisible();
-    await expect(b.getByText("ABRA")).toBeVisible();
+    await expect(a.getByRole("cell", { name: "abra" })).toBeVisible();
+    await expect(b.getByRole("cell", { name: "abra" })).toBeVisible();
+    // Once resolved, the enrichment card appears for both players.
+    await expect(a.getByText("Avots: Tēzaurs.lv").first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(b.getByText("Avots: Tēzaurs.lv").first()).toBeVisible({
+      timeout: 15000,
+    });
     await ctxA.close();
     await ctxB.close();
   });
@@ -171,8 +181,8 @@ test.describe("Lingo online multiplayer", () => {
     });
     // Round-by-round table with revealed words on both clients.
     for (const word of BATTLE_WORDS) {
-      await expect(a.getByText(word.toUpperCase())).toBeVisible();
-      await expect(b.getByText(word.toUpperCase())).toBeVisible();
+      await expect(a.getByRole("cell", { name: word })).toBeVisible();
+      await expect(b.getByRole("cell", { name: word })).toBeVisible();
     }
 
     // Rematch: both request; a new room is created with both slots filled.

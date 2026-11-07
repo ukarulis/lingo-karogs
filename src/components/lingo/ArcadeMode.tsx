@@ -27,6 +27,7 @@ import { useSettings } from "@/lib/use-settings";
 import { loadLingoStats, recordArcade } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
 import { loadGame, saveGame } from "@/lib/store/storage";
+import { WordInfoCard } from "./WordInfoCard";
 
 function isArcadeSession(raw: unknown): raw is ArcadeSession {
   if (!raw || typeof raw !== "object") return false;
@@ -256,6 +257,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
           </Button>
         </div>
       ) : null}
+      {wordDone && !session.over ? <WordInfoCard word={round.target} /> : null}
       {session.over && round ? (
         <ResultDialog
           open={resultOpen}
@@ -284,6 +286,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
           </Button>
         </div>
       ) : null}
+      {session.over ? <WordInfoCard word={round.target} /> : null}
     </div>
   );
 }

@@ -1,0 +1,256 @@
+{
+  "version": "editorial-1",
+  "reviewedBy": "projekta komanda",
+  "overrides": {
+    "ābols": {
+      "mode": "replace",
+      "senses": [
+        {
+          "definition": ["Ābeles auglis, parasti apaļš, sulīgs un ēdams."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "saule": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Debess spīdeklis, kas dienā dod gaismu un siltumu."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "mēness": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Zemes dabiskais pavadonis, kas spīd naktī."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "zvaigzne": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Debesīs naktī redzams gaismas punkts."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "ūdens": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Dzidrs šķidrums, bez kura dzīvie organismi nevar dzīvot."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "uguns": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Karsta liesma un siltums, kas rodas, kaut kam degot."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "māja": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Ēka, kurā cilvēki dzīvo."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "galds": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Mēbele ar plakanu virsmu, pie kuras ēd vai strādā."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "krēsls": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Mēbele ar atzveltni, uz kuras sēž."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "pilsēta": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Liela apdzīvota vieta ar daudzām ielām un ēkām."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "upe": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Lielāka ūdens straume, kas plūst pa gultni."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "jūra": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Liels sālsūdens baseins starp kontinentiem."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "mežs": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Liela platība, kurā aug daudz koku."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "koks": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Liels augs ar stumbru, zariem un lapām."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "putns": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Dzīvnieks ar spalvām, spārniem un knābi."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "suns": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Mājdzīvnieks, cilvēka draugs, kas rej."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "kaķis": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Mājdzīvnieks, kas murrā un ķer peles."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "maize": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Pārtikas produkts, ko cep no miltiem."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "piens": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Balts dzēriens, ko dod govis un citi zīdītāji."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "grāmata": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Iesietas lapas ar tekstu, ko lasa."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "skola": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Mācību iestāde, kurā bērni iegūst zināšanas."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "vējš": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Gaisa kustība dabā."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "lietus": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Ūdens pilieni, kas krīt no mākoņiem."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "sniegs": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Sasalis ūdens kristālos, kas ziemā klāj zemi."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    },
+    "karogs": {
+      "mode": "prepend",
+      "senses": [
+        {
+          "definition": ["Auduma simbols ar krāsām vai zīmēm, ko paceļ mastā."],
+          "pos": "n",
+          "editorial": true
+        }
+      ]
+    }
+  }
+}

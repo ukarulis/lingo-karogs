@@ -64,18 +64,36 @@ export class PostgresLingoMpStore implements LingoMpStore {
   private pool: Pool;
 
   constructor() {
-    const url = process.env.LINGO_MP_DATABASE_URL;
-    if (!url) {
+    const rawUrl = process.env.LINGO_MP_DATABASE_URL;
+    if (!rawUrl) {
       throw new Error(
         "Postgres Lingo store requires LINGO_MP_DATABASE_URL",
       );
     }
-    const ssl =
-      process.env.LINGO_MP_SSL === "disable"
-        ? false
-        : { rejectUnauthorized: true };
+    let ssl: boolean | { rejectUnauthorized: boolean; ca?: Buffer };
+    if (process.env.LINGO_MP_SSL === "disable") {
+      ssl = false;
+    } else {
+      const sslConfig: { rejectUnauthorized: boolean; ca?: Buffer } = {
+        rejectUnauthorized: true,
+      };
+      const caFile = process.env.LINGO_MP_SSL_CA_FILE;
+      if (caFile) {
+        sslConfig.ca = fs.readFileSync(
+          /* turbopackIgnore: true */ path.resolve(
+            process.cwd(),
+            caFile,
+          ),
+        );
+      }
+      ssl = sslConfig;
+    }
+    // node-postgres treats sslmode=* as a verify alias and ignores the
+    // explicit ssl option; strip it so the CA below governs verification.
+    const url = new URL(rawUrl);
+    url.searchParams.delete("sslmode");
     this.pool = new Pool({
-      connectionString: url,
+      connectionString: url.toString(),
       ssl,
       max: Number(process.env.LINGO_MP_POOL_MAX ?? 3),
       idleTimeoutMillis: 10_000,
@@ -101,9 +119,21 @@ export class PostgresLingoMpStore implements LingoMpStore {
   }
 
   async migrate(): Promise<void> {
-    for (const file of MIGRATIONS) {
-      const sql = fs.readFileSync(/* turbopackIgnore: true */ file, "utf8");
-      await this.pool.query(sql);
+    // The production runtime must not execute DDL during ordinary requests.
+    // Migrations run explicitly via `scripts/migrate-lingo-db.mjs`; the
+    // runtime only verifies the required schema version.
+    if (process.env.LINGO_MP_AUTO_MIGRATE === "1") {
+      for (const file of MIGRATIONS) {
+        const sql = fs.readFileSync(/* turbopackIgnore: true */ file, "utf8");
+        await this.pool.query(sql);
+      }
+      return;
+    }
+    const version = await this.schemaVersion();
+    if (version < 1) {
+      throw new Error(
+        "Lingo schema missing: run scripts/migrate-lingo-db.mjs with a direct connection",
+      );
     }
   }
 
@@ -341,7 +371,7 @@ export class PostgresLingoMpStore implements LingoMpStore {
         seq, word, result_json, created_at)
        VALUES ($1, (SELECT match_id FROM lingo_match_rounds WHERE id = $2),
         $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [
         submission.id, submission.roundId, submission.player, submission.seq,
         submission.word, submission.resultJson, submission.createdAt,
@@ -354,7 +384,7 @@ export class PostgresLingoMpStore implements LingoMpStore {
       `INSERT INTO lingo_match_events (id, match_id, action_id, type, player,
         payload_json, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [
         event.id, event.matchId, event.actionId, event.type, event.player,
         event.payloadJson, event.createdAt,
@@ -366,7 +396,7 @@ export class PostgresLingoMpStore implements LingoMpStore {
     await this.pool.query(
       `INSERT INTO lingo_match_results (match_id, result_json, created_at)
        VALUES ($1,$2,$3)
-       ON CONFLICT (match_id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [result.matchId, result.resultJson, result.createdAt],
     );
   }
@@ -666,7 +696,7 @@ class PostgresLingoMpStoreTx implements LingoMpStore {
         seq, word, result_json, created_at)
        VALUES ($1, (SELECT match_id FROM lingo_match_rounds WHERE id = $2),
         $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [
         submission.id, submission.roundId, submission.player, submission.seq,
         submission.word, submission.resultJson, submission.createdAt,
@@ -679,7 +709,7 @@ class PostgresLingoMpStoreTx implements LingoMpStore {
       `INSERT INTO lingo_match_events (id, match_id, action_id, type, player,
         payload_json, created_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [
         event.id, event.matchId, event.actionId, event.type, event.player,
         event.payloadJson, event.createdAt,
@@ -690,7 +720,7 @@ class PostgresLingoMpStoreTx implements LingoMpStore {
   async insertResult(result: LingoMpDbResult): Promise<void> {
     await this.q(
       `INSERT INTO lingo_match_results (match_id, result_json, created_at)
-       VALUES ($1,$2,$3) ON CONFLICT (match_id) DO NOTHING`,
+       VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
       [result.matchId, result.resultJson, result.createdAt],
     );
   }

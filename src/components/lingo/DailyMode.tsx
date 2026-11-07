@@ -30,6 +30,7 @@ import { useSettings } from "@/lib/use-settings";
 import { dailyStreaks, loadLingoStats, recordDaily } from "@/lib/store/lingoStats";
 import { recordGameEvent } from "@/lib/store/achievements";
 import { loadGame, saveGame } from "@/lib/store/storage";
+import { WordInfoCard } from "./WordInfoCard";
 
 interface DailySave {
   date: string;
@@ -260,6 +261,7 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
           </Button>
         </div>
       ) : null}
+      {finished ? <WordInfoCard word={round.target} /> : null}
     </div>
   );
 }

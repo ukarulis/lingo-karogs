@@ -1,0 +1,170 @@
+{
+  "version": "tezaurs-2026-2-content-1",
+  "language": "lv",
+  "dictionaryVersion": "tezaurs-2026-2",
+  "generatedAt": "2026-11-07T16:34:53.854Z",
+  "license": "CC BY-SA 4.0",
+  "sources": [
+    {
+      "name": "Tēzaurs.lv 2026 — Latviešu valodas WordNet (LMF/XML)",
+      "handle": "20.500.12574/156",
+      "license": "CC BY-SA 4.0",
+      "link": "https://repository.clarin.lv/repository/xmlui/handle/20.500.12574/156"
+    },
+    {
+      "name": "Latviešu valodas vārdu biežuma datu kopa (25K)",
+      "handle": "20.500.12574/148",
+      "license": "CC BY-SA 4.0",
+      "link": "https://repository.clarin.lv/repository/xmlui/handle/20.500.12574/148"
+    }
+  ],
+  "difficulty": {
+    "beginner": "biežuma rangs ≤ 1500 un vārds ir Dienas biežuma kopā",
+    "standard": "Dienas biežuma kopa",
+    "challenging": "pārējie mērķvārdi"
+  },
+  "stats": {
+    "total": 5141,
+    "covered": 5133,
+    "senses": 6451,
+    "examples": 1864
+  },
+  "editorial": {
+    "reviewedBy": "projekta komanda",
+    "overriddenWords": 25
+  },
+  "shards": [
+    {
+      "file": "a.json",
+      "words": 275
+    },
+    {
+      "file": "ā.json",
+      "words": 29
+    },
+    {
+      "file": "b.json",
+      "words": 332
+    },
+    {
+      "file": "c.json",
+      "words": 125
+    },
+    {
+      "file": "č.json",
+      "words": 66
+    },
+    {
+      "file": "d.json",
+      "words": 312
+    },
+    {
+      "file": "e.json",
+      "words": 53
+    },
+    {
+      "file": "ē.json",
+      "words": 18
+    },
+    {
+      "file": "f.json",
+      "words": 95
+    },
+    {
+      "file": "g.json",
+      "words": 175
+    },
+    {
+      "file": "ģ.json",
+      "words": 15
+    },
+    {
+      "file": "h.json",
+      "words": 64
+    },
+    {
+      "file": "i.json",
+      "words": 112
+    },
+    {
+      "file": "ī.json",
+      "words": 13
+    },
+    {
+      "file": "j.json",
+      "words": 72
+    },
+    {
+      "file": "k.json",
+      "words": 463
+    },
+    {
+      "file": "ķ.json",
+      "words": 55
+    },
+    {
+      "file": "l.json",
+      "words": 223
+    },
+    {
+      "file": "ļ.json",
+      "words": 22
+    },
+    {
+      "file": "m.json",
+      "words": 302
+    },
+    {
+      "file": "n.json",
+      "words": 142
+    },
+    {
+      "file": "ņ.json",
+      "words": 9
+    },
+    {
+      "file": "o.json",
+      "words": 61
+    },
+    {
+      "file": "p.json",
+      "words": 501
+    },
+    {
+      "file": "r.json",
+      "words": 226
+    },
+    {
+      "file": "s.json",
+      "words": 543
+    },
+    {
+      "file": "š.json",
+      "words": 133
+    },
+    {
+      "file": "t.json",
+      "words": 275
+    },
+    {
+      "file": "u.json",
+      "words": 34
+    },
+    {
+      "file": "ū.json",
+      "words": 7
+    },
+    {
+      "file": "v.json",
+      "words": 221
+    },
+    {
+      "file": "z.json",
+      "words": 119
+    },
+    {
+      "file": "ž.json",
+      "words": 41
+    }
+  ]
+}

@@ -20,6 +20,12 @@ test.describe("Lingo", () => {
     await typeWord(page, "ābols");
     await pressEnter(page);
     await expect(page.getByRole("heading", { name: "Vārds atminēts! 🎉" })).toBeVisible();
+    await page.getByRole("button", { name: "Aizvērt" }).click();
+    // Word-discovery card appears after resolution without blocking play.
+    await expect(page.getByText("Ābeles auglis", { exact: false })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByText("Avots: Tēzaurs.lv", { exact: false })).toBeVisible();
 
     // Persistence across refresh.
     await page.reload();
@@ -41,7 +47,7 @@ test.describe("Lingo", () => {
       await pressEnter(page);
     }
     await expect(page.getByRole("heading", { name: "Neizdevās šoreiz" })).toBeVisible();
-    await expect(page.getByText("ĀBOLS")).toBeVisible();
+    await expect(page.getByText(/Vārds bija “ĀBOLS”/)).toBeVisible();
   });
 
   test("supports physical keyboard input and accessibility labels", async ({ page }) => {
@@ -227,6 +233,7 @@ test.describe("Lingo", () => {
         .first()
         .getByRole("gridcell"),
     ).toHaveCount(4);
+    await expect(page.getByRole("checkbox", { name: "Viegli vārdi" })).toBeVisible();
   });
 
   test("unlimited plays a seven-letter round with freeform guesses and locked letters", async ({ page }) => {

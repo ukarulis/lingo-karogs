@@ -37,6 +37,9 @@ import { mpError, mpLog } from "./log";
 
 export { LingoMpError } from "./engine";
 
+/** Internal: an optimistic update lost a version race; retry outside. */
+class TransactionConflict extends Error {}
+
 /**
  * Hash a player token with a server secret. Production fails closed when the
  * secret is missing or too short instead of silently using a fallback.
@@ -238,7 +241,7 @@ export class LingoMultiplayerService {
             next = await this.createRematchVia(tx, next, now);
           }
           const saved = await this.saveAggregateVia(tx, agg, next);
-          if (!saved) return { kind: "conflict" as const };
+          if (!saved) throw new TransactionConflict();
           await this.maybeRecordResultVia(tx, saved);
           const final = await this.persistReconciledVia(tx, saved, now);
           return {
@@ -246,7 +249,6 @@ export class LingoMultiplayerService {
             view: buildView(final, slot, now),
           };
         });
-        if (outcome.kind === "conflict") continue;
         if (outcome.kind === "missing") {
           return { ok: false, code: "room-not-found", error: "Istaba nav atrasta" };
         }
@@ -259,6 +261,7 @@ export class LingoMultiplayerService {
         }
         return { ok: true, view: outcome.view };
       } catch (error) {
+        if (error instanceof TransactionConflict) continue;
         if (error instanceof LingoMpError) throw error;
         mpError("action-failed", error, { matchId, actionType: action.type });
         return { ok: false, code: "internal", error: "Darbība neizdevās" };

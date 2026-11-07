@@ -40,6 +40,7 @@ import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { useSettings } from "@/lib/use-settings";
 import { cn } from "@/lib/utils";
+import { WordInfoCard } from "./WordInfoCard";
 
 const LENGTHS = enabledLengths();
 const DEFAULT_LENGTH = LENGTHS.includes(5) ? "5" : String(LENGTHS[0] ?? 5);
@@ -736,23 +737,26 @@ export function OnlineMode({
             />
           </div>
           {round.status === "resolved" && round.word ? (
-            <Card className="mx-auto mt-4 max-w-sm p-4 text-center">
-              <p className="text-sm font-bold">
-                Vārds bija {round.word.toUpperCase()} —{" "}
-                {round.yourOutcome === "solved"
-                  ? "atminēji!"
-                  : round.yourOutcome === "timeout"
-                    ? "laiks beidzās"
-                    : "neatminēji"}
-              </p>
-              <div className="mt-2 flex justify-around text-xs font-semibold text-stone-500 dark:text-stone-400">
-                {round.players.map((p) => (
-                  <span key={p.slot}>
-                    {p.nickname}: {p.attemptsUsed} mēģ. · {p.score} p
-                  </span>
-                ))}
-              </div>
-            </Card>
+            <>
+              <Card className="mx-auto mt-4 max-w-sm p-4 text-center">
+                <p className="text-sm font-bold">
+                  Vārds bija {round.word.toUpperCase()} —{" "}
+                  {round.yourOutcome === "solved"
+                    ? "atminēji!"
+                    : round.yourOutcome === "timeout"
+                      ? "laiks beidzās"
+                      : "neatminēji"}
+                </p>
+                <div className="mt-2 flex justify-around text-xs font-semibold text-stone-500 dark:text-stone-400">
+                  {round.players.map((p) => (
+                    <span key={p.slot}>
+                      {p.nickname}: {p.attemptsUsed} mēģ. · {p.score} p
+                    </span>
+                  ))}
+                </div>
+              </Card>
+              <WordInfoCard word={round.word} compact />
+            </>
           ) : null}
           <div className="mx-auto mt-3 flex max-w-sm justify-center">
             <Button variant="ghost" size="sm" onClick={() => void send("forfeit")}>
@@ -808,6 +812,12 @@ export function OnlineMode({
                 </tbody>
               </table>
             </div>
+          ) : null}
+          {view.result && view.result.rounds.length > 0 ? (
+            <WordInfoCard
+              word={view.result.rounds[view.result.rounds.length - 1].word}
+              compact
+            />
           ) : null}
           {view.status === "cancelled" || view.status === "expired" ? (
             <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
