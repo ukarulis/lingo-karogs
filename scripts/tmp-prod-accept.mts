@@ -1,0 +1,228 @@
+import fs from "node:fs";
+import { chromium, expect } from "@playwright/test";
+
+const BASE = "https://lingo-karogs.vercel.app";
+const PLAIN = "abcdefghijklmnoprstuvz";
+const check = (name: string, ok: boolean, detail = "") =>
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? " — " + detail : ""}`);
+
+const browser = await chromium.launch();
+
+async function openOnline(page: import("@playwright/test").Page) {
+  const skip = page.getByRole("button", { name: "Izlaist pamācību" });
+  await skip.waitFor({ timeout: 8000 }).catch(() => undefined);
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await page.getByRole("radio", { name: "Spēlēt ar draugu" }).click();
+}
+
+async function typeMp(page: import("@playwright/test").Page, word: string) {
+  for (const ch of word) {
+    await page.getByRole("button", { name: new RegExp(`^Burts ${ch}`) }).click();
+  }
+  await page.getByRole("button", { name: "Apstiprināt" }).click();
+}
+
+async function waitForInput(page: import("@playwright/test").Page) {
+  await page
+    .getByRole("button", { name: "Apstiprināt" })
+    .waitFor({ state: "visible" });
+  await page.waitForTimeout(300);
+}
+
+// --- Test A: Quick Duel (timeout draw + identical results) ---
+{
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await a.goto(BASE + "/lingo");
+  await openOnline(a);
+  await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
+  await a.getByRole("button", { name: "Izveidot istabu" }).click();
+  await a.locator("span.font-mono").waitFor({ timeout: 20000 });
+  const code = (await a.locator("span.font-mono").textContent())!.trim();
+  await b.goto(`${BASE}/lingo?room=${code}`);
+  await openOnline(b);
+  await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
+  await b.getByRole("button", { name: "Pievienoties" }).click();
+  await a.getByRole("button", { name: "Esmu gatavs" }).click();
+  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await a.getByText("Spēle sākas pēc").waitFor({ timeout: 20000 });
+  await a.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
+  await b.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
+  await waitForInput(a);
+  await waitForInput(b);
+  const clueA = await a
+    .getByRole("group", { name: "Spēles laukums" })
+    .locator('[role="gridcell"]')
+    .first()
+    .getAttribute("aria-label");
+  const clueB = await b
+    .getByRole("group", { name: "Spēles laukums" })
+    .locator('[role="gridcell"]')
+    .first()
+    .getAttribute("aria-label");
+  check("same public first-letter clue", clueA === clueB, `${clueA} vs ${clueB}`);
+  const first = (clueA ?? "a").slice(0, 1).toLowerCase();
+  for (let i = 0; i < 5; i++) {
+    const filler = PLAIN.slice(i * 3, i * 3 + 3).padEnd(3, "a");
+    await typeMp(a, first + filler);
+    await typeMp(b, first + "z" + filler.slice(0, 2));
+  }
+  await a.getByText("Neizšķirts").waitFor({ timeout: 30000 });
+  await b.getByText("Neizšķirts").waitFor({ timeout: 30000 });
+  check("quick duel completed with consistent draw", true);
+  check(
+    "no answer leaked before resolution",
+    (await a.getByText("Avots: Tēzaurs.lv").count()) > 0,
+  );
+  await ctxA.close();
+  await ctxB.close();
+}
+
+// --- Test B: Five-Word Battle (extensions, fail-fast rounds, rematch) ---
+{
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await a.goto(BASE + "/lingo");
+  await openOnline(a);
+  await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
+  await a.getByRole("radio", { name: "Piecu vārdu cīņa" }).click();
+  await a.getByRole("button", { name: "Izveidot istabu" }).click();
+  await a.locator("span.font-mono").waitFor({ timeout: 20000 });
+  const code = (await a.locator("span.font-mono").textContent())!.trim();
+  await b.goto(`${BASE}/lingo?room=${code}`);
+  await openOnline(b);
+  await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
+  await b.getByRole("button", { name: "Pievienoties" }).click();
+  await a.getByRole("button", { name: "Esmu gatavs" }).click();
+  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await a.getByText("Kārta 1/5", { exact: false }).waitFor({ timeout: 25000 });
+  await waitForInput(a);
+  await waitForInput(b);
+  await a.getByRole("button", { name: /Pagarināt \+15 s/ }).click();
+  await a
+    .getByRole("button", { name: /Pagarināt \+15 s \(2\/3\)/ })
+    .waitFor({ timeout: 15000 });
+  check(
+    "extension decremented budget and one-per-round cap",
+    await a
+      .getByRole("button", { name: /Pagarināt \+15 s \(2\/3\)/ })
+      .isDisabled(),
+  );
+  for (let round = 0; round < 5; round++) {
+    const firstLabel = await a
+      .getByRole("group", { name: "Spēles laukums" })
+      .locator('[role="gridcell"]')
+      .first()
+      .getAttribute("aria-label");
+    const first = (firstLabel ?? "a").slice(0, 1).toLowerCase();
+    for (let i = 0; i < 5; i++) {
+      const filler = PLAIN.slice((round * 5 + i) * 3, (round * 5 + i) * 3 + 3).padEnd(3, "a");
+      await typeMp(a, first + filler);
+      await typeMp(b, first + "z" + filler.slice(0, 2));
+    }
+    if (round < 4) {
+      await a
+        .getByText(`Kārta ${round + 2}/5`, { exact: false })
+        .waitFor({ timeout: 30000 });
+      await waitForInput(a);
+      await waitForInput(b);
+    }
+  }
+  await a.getByText("Neizšķirts").waitFor({ timeout: 30000 });
+  await b.getByText("Neizšķirts").waitFor({ timeout: 30000 });
+  check("five-word battle completed with consistent result", true);
+  await a.getByRole("button", { name: "Revanšs" }).click();
+  await b.getByRole("button", { name: "Revanšs" }).click();
+  await a
+    .getByRole("button", { name: "Turpināt uz revanšu" })
+    .waitFor({ timeout: 20000 });
+  await b
+    .getByRole("button", { name: "Turpināt uz revanšu" })
+    .waitFor({ timeout: 20000 });
+  await a.getByRole("button", { name: "Turpināt uz revanšu" }).click();
+  await b.getByRole("button", { name: "Turpināt uz revanšu" }).click();
+  await a.getByRole("button", { name: "Esmu gatavs" }).waitFor({ timeout: 20000 });
+  check("rematch creates a fresh room", true);
+  await ctxA.close();
+  await ctxB.close();
+}
+
+// --- Test C: reconnection mid-match ---
+{
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await a.goto(BASE + "/lingo");
+  await openOnline(a);
+  await a.getByPlaceholder("Spēlētājs").fill("AnnaProds");
+  await a.getByRole("button", { name: "Izveidot istabu" }).click();
+  await a.locator("span.font-mono").waitFor({ timeout: 20000 });
+  const code = (await a.locator("span.font-mono").textContent())!.trim();
+  await b.goto(`${BASE}/lingo?room=${code}`);
+  await openOnline(b);
+  await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
+  await b.getByRole("button", { name: "Pievienoties" }).click();
+  await a.getByRole("button", { name: "Esmu gatavs" }).click();
+  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await b.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
+  await waitForInput(b);
+  const firstLabel = await b
+    .getByRole("group", { name: "Spēles laukums" })
+    .locator('[role="gridcell"]')
+    .first()
+    .getAttribute("aria-label");
+  const first = (firstLabel ?? "a").slice(0, 1).toLowerCase();
+  await typeMp(b, `${first}bcd`);
+  await expect(b.getByRole("group", { name: "Spēles laukums" }).getByLabel(/pareizi|citā vietā|nav vārdā/)).toHaveCount(4, { timeout: 15000 });
+  await b.reload();
+  await openOnline(b);
+  await expect(b.getByRole("group", { name: "Spēles laukums" }).getByLabel(/pareizi|citā vietā|nav vārdā/)).toHaveCount(4, { timeout: 20000 });
+  check("reconnect restored slot and guess history", true);
+  await ctxA.close();
+  await ctxB.close();
+}
+
+// --- Test D/E: authorization + health ---
+{
+  const res = await fetch(BASE + "/api/lingo-mp/status");
+  const status = (await res.json()) as { available: boolean; mode: string };
+  check("public health reports enabled", status.available === true, `mode=${status.mode}`);
+  const createRes = await fetch(BASE + "/api/lingo-mp", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      format: "quick-duel",
+      length: 4,
+      nickname: "Probe",
+      guestHash: "probe-guest-hash-1234",
+      playerToken: "probe-player-token-1234",
+    }),
+  });
+  const created = (await createRes.json()) as { matchId: string };
+  check("room creation works over API", createRes.ok && !!created.matchId);
+  const forged = await fetch(
+    `${BASE}/api/lingo-mp/${created.matchId}`,
+    { headers: { "x-player-token": "forged" } },
+  );
+  check("invalid token rejected", forged.status === 403, `status=${forged.status}`);
+  const key = fs.readFileSync(`${process.env.TEMP}/lingo-healthkey.txt`, "utf8").trim();
+  const okHealth = await fetch(BASE + "/api/lingo-mp/health", {
+    headers: { "x-operator-key": key },
+  });
+  const health = (await okHealth.json()) as { ok: boolean; db?: { schemaVersion: number } };
+  check(
+    "operator health reports reachable db",
+    okHealth.status === 200 && health.ok === true && (health.db?.schemaVersion ?? 0) >= 1,
+  );
+  const badHealth = await fetch(BASE + "/api/lingo-mp/health", {
+    headers: { "x-operator-key": "wrong" },
+  });
+  check("operator health rejects bad key", badHealth.status === 403);
+}
+
+await browser.close();

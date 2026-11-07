@@ -157,17 +157,18 @@ export function OnlineMode({
 
   // Deep link or saved-session recovery on mount.
   useEffect(() => {
-    void (async () => {
-      setAvailable(await apiLingoMpStatus());
-      const params = new URLSearchParams(window.location.search);
-      const room = params.get("room");
-      if (room) setJoinCode(room);
-      const last = lastLingoMpSession();
-      if (last) {
-        const saved = getLingoMpSession(last.matchId);
-        if (saved && (!room || saved.code === room)) setSession(saved);
-      }
-    })();
+    // The invitation room parameter is applied synchronously so a guest can
+    // join immediately; the availability probe is independent of it.
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get("room");
+    if (room) setJoinCode(room);
+    const last = lastLingoMpSession();
+    if (last) {
+      const saved = getLingoMpSession(last.matchId);
+      if (saved && (!room || saved.code === room)) setSession(saved);
+    }
+    void apiLingoMpStatus().then(setAvailable);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Polling cadence: faster during countdown/play, slower otherwise.
