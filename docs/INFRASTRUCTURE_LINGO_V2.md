@@ -75,7 +75,7 @@ Nekad neievietot `NEXT_PUBLIC_*` noslēpumus; tiešsaistes žetonus nesūtīt UR
 
 ## Trūkstošā iespēja (precīzi)
 
-Ražošanas aktivizēšanai trūkst **autorizēta PostgreSQL savienojuma
-akreditācijas** (vai Supabase projekta ar PostgreSQL piekļuvi): ne
-DigitalOcean CLI nav autentificēts, ne kāds datubāzes URL ir konfigurēts
-projektam. Jauna (maksas) datubāzes izveide prasa īpašnieka apstiprinājumu.
+**ATRISINĀTS V2.2**: īpašnieks piešķīra pagaidu DigitalOcean piekļuvi.
+Izveidota `lingo_prod` datubāze, `lingo_app` lietotājs un `lingo_pool`
+baseins; shēma `lingo`; TLS ar DigitalOcean projekta CA; ražošana
+aktivizēta. Detalizēti: `docs/LINGO_V2_2_PRODUCTION.md`.
