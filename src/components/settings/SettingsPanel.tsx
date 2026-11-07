@@ -59,10 +59,12 @@ export function SettingsPanel() {
   }, []);
 
   const activeSaves = useMemo(
-    () =>
-      SAVED_GAMES.map((g) => ({ ...g, meta: peekGameSave(g.key) })).filter(
+    () => {
+      if (!hydrated) return [];
+      return SAVED_GAMES.map((g) => ({ ...g, meta: peekGameSave(g.key) })).filter(
         (g) => g.meta !== null,
-      ),
+      );
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [savesTick, hydrated],
   );
