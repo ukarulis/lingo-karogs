@@ -1,6 +1,10 @@
+// Post-deployment verification: visits every route and checks the V1.2
+// headline features plus console cleanliness.
+// Usage: node scripts/verify-production.mjs [base-url]
+
 import { chromium } from "@playwright/test";
 
-const BASE = "https://lingo-karogs.vercel.app";
+const BASE = process.argv[2] ?? "https://lingo-karogs.vercel.app";
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];
