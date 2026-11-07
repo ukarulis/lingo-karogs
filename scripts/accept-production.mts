@@ -29,6 +29,26 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await page.waitForTimeout(300);
 }
 
+async function readyBoth(
+  a: import("@playwright/test").Page,
+  b: import("@playwright/test").Page,
+) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const page of [a, b]) {
+      const readyBtn = page.getByRole("button", { name: "Esmu gatavs" });
+      if (await readyBtn.isVisible().catch(() => false)) {
+        await readyBtn.click();
+      }
+    }
+    const sawCountdown =
+      (await a.getByText("Spēle sākas pēc").isVisible().catch(() => false)) ||
+      (await b.getByText("Spēle sākas pēc").isVisible().catch(() => false));
+    if (sawCountdown) return;
+    await a.waitForTimeout(5000);
+  }
+  throw new Error("ready handshake did not reach countdown");
+}
+
 // --- Test A: Quick Duel (timeout draw + identical results) ---
 {
   const ctxA = await browser.newContext();
@@ -57,8 +77,7 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await openOnline(b);
   await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
   await b.getByRole("button", { name: "Pievienoties" }).click();
-  await a.getByRole("button", { name: "Esmu gatavs" }).click();
-  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await readyBoth(a, b);
   await a.getByText("Spēle sākas pēc").waitFor({ timeout: 20000 });
   await a.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
   await b.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
@@ -127,22 +146,8 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await openOnline(b);
   await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
   await b.getByRole("button", { name: "Pievienoties" }).click();
-  await a.getByRole("button", { name: "Esmu gatavs" }).click();
-  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await readyBoth(a, b);
   await a.waitForTimeout(6000);
-  console.log(
-    "A STATE:\n" +
-      (await a.locator("main").innerText()).slice(0, 700).replace(/\n/g, " | "),
-  );
-  console.log("A URL:", a.url());
-  console.log(
-    "A MAIN HTML:\n" +
-      (await a.locator("html").innerHTML()).slice(0, 900).replace(/\n/g, " "),
-  );
-  console.log(
-    "B STATE:\n" +
-      (await b.locator("main").innerText()).slice(0, 700).replace(/\n/g, " | "),
-  );
   await a.getByText("Spēle sākas pēc").waitFor({ timeout: 30000 });
   await a.getByText("Kārta 1/5", { exact: false }).waitFor({ timeout: 25000 });
   await waitForInput(a);
@@ -224,8 +229,7 @@ async function waitForInput(page: import("@playwright/test").Page) {
   await openOnline(b);
   await b.getByPlaceholder("Spēlētājs").fill("BertaProds");
   await b.getByRole("button", { name: "Pievienoties" }).click();
-  await a.getByRole("button", { name: "Esmu gatavs" }).click();
-  await b.getByRole("button", { name: "Esmu gatavs" }).click();
+  await readyBoth(a, b);
   await b.getByRole("group", { name: "Spēles laukums" }).waitFor({ timeout: 25000 });
   await waitForInput(b);
   const firstLabel = await b

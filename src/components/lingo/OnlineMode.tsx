@@ -176,12 +176,26 @@ export function OnlineMode({
     if (!session) return;
     void poll();
     const fast =
-      !!view && (view.status === "countdown" || view.status === "playing");
+      !!view &&
+      (view.status === "waiting" ||
+        view.status === "ready" ||
+        view.status === "countdown" ||
+        view.status === "playing");
     const interval = window.setInterval(
       () => void poll(),
-      fast ? 1500 : 3000,
+      fast ? 1200 : 3000,
     );
-    return () => window.clearInterval(interval);
+    const onFocus = () => void poll();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, view?.status]);
 
