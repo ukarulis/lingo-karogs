@@ -9,6 +9,12 @@ function normalizeLength(values: (string | null)[]): (string | null)[] {
   return Array.from({ length: LENGTH }, (_, i) => values[i] ?? null);
 }
 
+/**
+ * Controlled five-letter input with explicit accept/reject semantics.
+ * The editable buffer is cleared synchronously only after the parent accepts
+ * a submission, so failed submissions (invalid or duplicate words) stay
+ * editable and rapid Enter presses can never double-submit.
+ */
 export function useGuessInput({
   enabled,
   fixedPositions,
@@ -17,27 +23,34 @@ export function useGuessInput({
   enabled: boolean;
   /** Positions the user cannot change (first letter, revealed hints). */
   fixedPositions: (string | null)[];
-  onSubmit: (word: string) => void;
+  /** Return true when the guess was accepted; false keeps the word editable. */
+  onSubmit: (word: string) => boolean;
 }) {
   const [buffer, setBuffer] = useState<(string | null)[]>(() =>
     normalizeLength(fixedPositions.map((f, i) => (f || i === 0 ? f : null))),
   );
   const [shakeTick, setShakeTick] = useState(0);
   const bufferRef = useRef(buffer);
+  const enabledRef = useRef(enabled);
 
   useEffect(() => {
     bufferRef.current = buffer;
   }, [buffer]);
 
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
   // Keep the buffer in sync with fixed positions (first letter, revealed
-  // hints) whenever they change.
+  // hints) whenever they change, e.g. when a new round starts.
   useEffect(() => {
     setBuffer((prev) => {
       const next = normalizeLength(prev);
-      let changed = prev.length !== LENGTH;
+      let changed = false;
       fixedPositions.forEach((f, i) => {
-        if (f && next[i] !== f) {
-          next[i] = f;
+        const desired = i === 0 ? (f || null) : f;
+        if (desired !== null && next[i] !== desired) {
+          next[i] = desired;
           changed = true;
         }
       });
@@ -47,6 +60,7 @@ export function useGuessInput({
 
   const append = useCallback(
     (raw: string) => {
+      if (!enabledRef.current) return;
       const ch = raw.toLowerCase();
       const prev = normalizeLength(bufferRef.current);
       const typedCount = prev.filter(
@@ -69,6 +83,7 @@ export function useGuessInput({
   );
 
   const backspace = useCallback(() => {
+    if (!enabledRef.current) return;
     const prev = normalizeLength(bufferRef.current);
     const next = [...prev];
     let i = next.length - 1;
@@ -79,19 +94,28 @@ export function useGuessInput({
     setBuffer(next);
   }, [fixedPositions]);
 
-  const submit = useCallback(() => {
-    if (!enabled) return;
+  const submit = useCallback((): boolean => {
+    if (!enabledRef.current) return false;
     const current = normalizeLength(bufferRef.current);
     if (current.some((c) => c === null)) {
       setShakeTick((t) => t + 1);
-      return;
+      return false;
     }
-    onSubmit(current.join(""));
-  }, [enabled, onSubmit]);
+    const accepted = onSubmit(current.join(""));
+    if (accepted) {
+      // Clear editable letters synchronously (fixed positions stay put).
+      const next = normalizeLength(
+        fixedPositions.map((f, i) => (f || i === 0 ? f : null)),
+      );
+      bufferRef.current = next;
+      setBuffer(next);
+    }
+    return accepted;
+  }, [fixedPositions, onSubmit]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!enabled) return;
+      if (!enabledRef.current) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const target = e.target as HTMLElement | null;
       if (
@@ -114,7 +138,7 @@ export function useGuessInput({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [append, backspace, submit, enabled]);
+  }, [append, backspace, submit]);
 
   const full = buffer.every((c) => c !== null) && buffer.length === LENGTH;
   return { buffer, full, shakeTick, append, backspace, submit };

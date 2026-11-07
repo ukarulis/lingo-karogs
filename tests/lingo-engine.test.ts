@@ -124,6 +124,27 @@ describe("round lifecycle", () => {
     expect(() => submitGuess(round, "abols", DICT)).toThrowError(LingoError);
   });
 
+  it("rejects a duplicate word without consuming an attempt", () => {
+    let round = submitGuess(start(), "asara", DICT);
+    expect(() => submitGuess(round, "asara", DICT)).toThrowError(LingoError);
+    try {
+      submitGuess(round, "asara", DICT);
+    } catch (e) {
+      expect((e as LingoError).code).toBe("duplicate-word");
+      expect((e as LingoError).message).toBe("Šo vārdu jau mēģināji.");
+    }
+    expect(round.guesses.length).toBe(1);
+    expect(round.attemptsUsed).toBe(1);
+    expect(round.status).toBe("playing");
+  });
+
+  it("arcade mode also rejects duplicates", () => {
+    const session = startArcade("abols");
+    const next = arcadeSubmit(session, "asara", DICT);
+    expect(() => arcadeSubmit(next, "asara", DICT)).toThrowError(LingoError);
+    expect(next.current.guesses.length).toBe(1);
+  });
+
   it("wins on the correct word", () => {
     const round = submitGuess(start(), "abols", DICT);
     expect(round.status).toBe("won");

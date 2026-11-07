@@ -65,13 +65,13 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
     enabled: !!round && round.status === "playing",
     fixedPositions: fixed,
     onSubmit: (word) => {
-      if (!round || !state) return;
+      if (!round || !state) return false;
       try {
         const next = submitGuess(round, word, guessSet);
         if (next.status === "playing") {
           setState({ ...state, round: next });
           playSound("flip");
-          return;
+          return true;
         }
         const won = next.status === "won";
         if (won) playSound("win");
@@ -86,9 +86,11 @@ export function EndlessMode({ palette }: { palette: ReturnType<typeof paletteFor
           streak: won ? state.streak + 1 : 0,
           bestStreak: won ? Math.max(state.bestStreak, state.streak + 1) : state.bestStreak,
         });
+        return true;
       } catch (err) {
         playSound("error");
         push(err instanceof Error ? err.message : "Nederīgs vārds", "error");
+        return false;
       }
     },
   });

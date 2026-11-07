@@ -53,7 +53,10 @@ function Step3Interactive({ onDone }: { onDone: () => void }) {
   const { buffer, append, backspace, submit } = useGuessInput({
     enabled: submitted === null,
     fixedPositions: ["ā", null, null, null, null],
-    onSubmit: (word) => setSubmitted(word),
+    onSubmit: (word) => {
+      setSubmitted(word);
+      return true;
+    },
   });
   const results = submitted ? evaluateGuess(submitted, target) : null;
   return (

@@ -49,6 +49,7 @@ export interface ArcadeSession {
 export type GuessError =
   | "invalid-word"
   | "not-in-dictionary"
+  | "duplicate-word"
   | "wrong-first-letter"
   | "round-over"
   | "hints-empty"
@@ -141,6 +142,9 @@ export function submitGuess(
       "wrong-first-letter",
       `Vārdam jāsākas ar burtu “${round.firstLetter.toUpperCase()}”`,
     );
+  }
+  if (round.guesses.includes(word)) {
+    throw new LingoError("duplicate-word", "Šo vārdu jau mēģināji.");
   }
   if (round.guesses.length >= MAX_ATTEMPTS) {
     throw new LingoError("round-over", "Mēģinājumi izsmelti");

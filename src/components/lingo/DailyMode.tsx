@@ -80,7 +80,7 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
     enabled: !!round && round.status === "playing",
     fixedPositions: fixed,
     onSubmit: (word) => {
-      if (!round) return;
+      if (!round) return false;
       try {
         const next = submitGuess(round, word, guessSet);
         setRound(next);
@@ -110,9 +110,11 @@ export function DailyMode({ palette }: { palette: ReturnType<typeof paletteFor> 
         } else {
           playSound("flip");
         }
+        return true;
       } catch (err) {
         playSound("error");
         push(err instanceof Error ? err.message : "Nederīgs vārds", "error");
+        return false;
       }
     },
   });

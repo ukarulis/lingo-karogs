@@ -92,7 +92,7 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
     enabled: inputEnabled,
     fixedPositions: fixed,
     onSubmit: (word) => {
-      if (!session) return;
+      if (!session) return false;
       try {
         const next = arcadeSubmit(session, word, guessSet);
         const lastEntry = next.history[next.history.length - 1];
@@ -118,9 +118,11 @@ export function ArcadeMode({ palette }: { palette: ReturnType<typeof paletteFor>
           playSound("flip");
         }
         setSession(next);
+        return true;
       } catch (err) {
         playSound("error");
         push(err instanceof Error ? err.message : "Nederīgs vārds", "error");
+        return false;
       }
     },
   });
