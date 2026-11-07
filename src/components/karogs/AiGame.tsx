@@ -88,6 +88,7 @@ export function AiGame({
   const [screen, setScreen] = useState<AiGameState>("setup");
   const [placement, setPlacement] = useState<Record<number, Piece>>(defaultPlacement);
   const [resumeNotice, setResumeNotice] = useState(false);
+  const [ready, setReady] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [recorded, setRecorded] = useState(false);
@@ -118,6 +119,7 @@ export function AiGame({
       setState(scenarioOpenFlag());
       setScreen("playing");
     }
+    setReady(true);
   }, []);
 
   useEffect(() => {
@@ -269,7 +271,7 @@ export function AiGame({
         </Card>
       ) : null}
 
-      {screen === "setup" ? (
+      {screen === "setup" && ready ? (
         <>
           <KarogsBoard
             cells={setupCells}
@@ -292,6 +294,10 @@ export function AiGame({
             readyLabel="Sākt kauju"
           />
         </>
+      ) : null}
+
+      {screen === "setup" && !ready ? (
+        <div className="h-80 animate-pulse rounded-2xl bg-stone-200 dark:bg-stone-800" />
       ) : null}
 
       {screen !== "setup" && state ? (
