@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Flag, Shield, Swords } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -92,6 +92,7 @@ export function AiGame({
   const [reveal, setReveal] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [recorded, setRecorded] = useState(false);
+  const touchedRef = useRef(false);
   const { push } = useToast();
 
   const controller = useSetupController("red", placement, setPlacement, {
@@ -110,6 +111,7 @@ export function AiGame({
         setState(stored.state);
         setScreen(stored.state.phase === "finished" ? "finished" : "playing");
       }
+      setReady(true);
       return;
     }
     if (
@@ -123,7 +125,7 @@ export function AiGame({
   }, []);
 
   useEffect(() => {
-    if (state || Object.keys(placement).length > 0) {
+    if (state || touchedRef.current) {
       saveGame(
         "karogsAiGame",
         { state: state ?? createGame(), placement },
@@ -131,6 +133,11 @@ export function AiGame({
       );
     }
   }, [state, placement]);
+
+  const updatePlacement = (next: Record<number, Piece>) => {
+    touchedRef.current = true;
+    setPlacement(next);
+  };
 
   // AI turn.
   useEffect(() => {
@@ -289,7 +296,7 @@ export function AiGame({
             side="red"
             placement={placement}
             controller={controller}
-            onPlacementChange={setPlacement}
+            onPlacementChange={updatePlacement}
             onReady={start}
             readyLabel="Sākt kauju"
           />
