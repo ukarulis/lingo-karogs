@@ -51,7 +51,10 @@ export const FormationPicker = memo(function FormationPicker({
   onApply: (id: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+    <div
+      aria-label="Gatavās formācijas"
+      className="grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+    >
       {ALL.map((formation) => {
         const selected = selectedId === formation.id;
         const random = formation.id === RANDOM_FORMATION.id;

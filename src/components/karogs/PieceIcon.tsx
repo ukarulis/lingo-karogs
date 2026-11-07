@@ -25,23 +25,25 @@ export const PieceIcon = memo(function PieceIcon({
   if (!piece) return null;
 
   if ("hidden" in piece) {
+    const main = SIDE_MAIN[piece.owner] ?? "#57534e";
+    const edge = SIDE_EDGE[piece.owner] ?? "#292524";
     return (
       <svg viewBox="0 0 36 36" width={size} height={size} aria-hidden>
         <defs>
           <radialGradient id={gradientId} cx="35%" cy="30%" r="80%">
-            <stop offset="0%" stopColor="#78716c" />
-            <stop offset="100%" stopColor="#292524" />
+            <stop offset="0%" stopColor={main} />
+            <stop offset="100%" stopColor={edge} />
           </radialGradient>
         </defs>
-        <circle cx="18" cy="18" r="15" fill={`url(#${gradientId})`} stroke="#0c0a09" strokeWidth="2" />
-        <circle cx="18" cy="18" r="11.5" fill="none" stroke="#d6d3d1" strokeWidth="1.2" strokeDasharray="3 2" />
+        <circle cx="18" cy="18" r="15" fill={`url(#${gradientId})`} stroke={edge} strokeWidth="2" />
+        <circle cx="18" cy="18" r="11.5" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.4" strokeDasharray="3 2" />
         <text
           x="18"
           y="24"
           textAnchor="middle"
           fontSize="15"
           fontWeight="800"
-          fill="#f5f5f4"
+          fill="#ffffff"
           fontFamily="Arial, sans-serif"
         >
           ?

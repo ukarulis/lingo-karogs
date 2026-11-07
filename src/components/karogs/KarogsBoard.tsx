@@ -126,7 +126,7 @@ export const KarogsBoard = memo(function KarogsBoard({
                         : "bg-[#f4eedd] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:bg-stone-800 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
                       !lake && !disabled && "hover:bg-[#efe6cc] dark:hover:bg-stone-700",
                       isSelected && "z-10 ring-2 ring-indigo-500 ring-offset-1 ring-offset-stone-400 dark:ring-indigo-400 dark:ring-offset-stone-950",
-                      isLast && !isSelected && "bg-amber-200 dark:bg-amber-900/60",
+                  isLast && !isSelected && "animate-[pop_0.3s_ease-out] bg-amber-200 dark:bg-amber-900/60",
                       disabled && !lake && "opacity-90",
                     )}
                   >

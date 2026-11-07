@@ -32,6 +32,7 @@ test.describe("visual regression", () => {
   test("karogs formation picker and board", async ({ page }) => {
     await page.goto("/karogs");
     await skipOnboarding(page);
+    await page.getByRole("button", { name: "Izvēlēties formāciju" }).click();
     await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
     await expect(page.getByText("40/40")).toBeVisible();
     await expect(page.getByRole("grid", { name: /Tavs izvietojums/ })).toHaveScreenshot(

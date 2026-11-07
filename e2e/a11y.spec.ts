@@ -24,6 +24,7 @@ for (const viewport of VIEWPORTS) {
         await page.goto(route);
         await skipOnboarding(page);
         if (route === "/karogs") {
+          await page.getByRole("button", { name: "Izvēlēties formāciju" }).click();
           await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
         }
         const results = await new AxeBuilder({ page })

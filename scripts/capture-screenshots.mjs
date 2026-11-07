@@ -1,4 +1,4 @@
-// Captures README screenshots against a running production server.
+// Captures README + release screenshots against a running production server.
 // Usage: npm run build && npm run start -- --port 3100  (in another terminal)
 //        node scripts/capture-screenshots.mjs
 
@@ -52,15 +52,30 @@ const shots = [
   ["/statistika", "statistika.png"],
 ];
 
-for (const [url, file] of shots) {
-  await page.goto(BASE + url);
-  await page.waitForTimeout(1800);
-  if (url === "/karogs") {
-    await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
-    await page.waitForTimeout(400);
+async function capture(outDir, viewport) {
+  fs.mkdirSync(outDir, { recursive: true });
+  await page.setViewportSize(viewport);
+  for (const [url, file] of shots) {
+    await page.goto(BASE + url);
+    await page.waitForTimeout(1800);
+    if (url === "/karogs") {
+      await page.getByRole("button", { name: "Izvēlēties formāciju" }).click();
+      await page.getByRole("button", { name: /Sabalansētā/ }).first().click();
+      await page.waitForTimeout(400);
+    }
+    await page.screenshot({ path: path.join(outDir, file), fullPage: true });
+    console.log("captured", path.relative(process.cwd(), path.join(outDir, file)));
   }
-  await page.screenshot({ path: path.join(OUT, file), fullPage: true });
-  console.log("captured", file);
 }
+
+await capture(OUT, { width: 1280, height: 900 });
+await capture(
+  path.resolve(process.cwd(), "docs", "screenshots", "v1.2", "desktop"),
+  { width: 1280, height: 900 },
+);
+await capture(
+  path.resolve(process.cwd(), "docs", "screenshots", "v1.2", "mobile"),
+  { width: 375, height: 812 },
+);
 
 await browser.close();

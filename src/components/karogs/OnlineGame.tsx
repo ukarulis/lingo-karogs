@@ -138,7 +138,7 @@ export function OnlineGame({ initialCode }: { initialCode?: string }) {
   useEffect(() => {
     fetch("/api/health")
       .then((r) => r.json())
-      .then((h) => setOnlineDisabled(h?.multiplayer?.mode !== "supabase"))
+      .then((h) => setOnlineDisabled(h?.multiplayer?.available === false))
       .catch(() => undefined);
   }, []);
 

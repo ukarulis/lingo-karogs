@@ -42,6 +42,8 @@ oriģinālo izstrādātāju.
 - **Gatavās formācijas** — pieci pārdomāti sākuma izvietojumi ar vizuāliem
   priekšskatiem, viena pieskāriena spēles sākums, brīva pārveidošana un
   paša saglabātu formāciju izmantošana pret datoru, uz vietas un tiešsaistē.
+  Pirmajā apmeklējumā armija jau ir izvietota — **Sākt kauju** darbojas
+  uzreiz, savukārt formācijas un manuālā pielāgošana ir pieejama pēc izvēles.
 - Klasiskais 10×10 laukums, divi ezeri, 40 figūras katrā armijā, izlūki,
   mīnētāji, bumbas, spiegs, karogs — pilns noteikumu kopums.
 
@@ -50,9 +52,9 @@ oriģinālo izstrādātāju.
 - Statistika, sērijas, sasniegumi un spēļu vēsture (lokāli, bez konta).
 - Gaišā/tumšā tēma, mobilais skārienjutīgais izkārtojums, skaņas efekti,
   interaktīvas pamācības abām spēlēm.
-- UI sistēma veidota uz **Web Awesome** web komponentēm (pogas, dialogi,
-  slēdži, segmentētās vadīklas, paziņojumi) ar SSR/hydration atbalstu Next.js
-  vidē un pielāgotu zīmola tēmu (indigo/stones).
+- Kopīgā UI sistēma: pogas, kartītes un vadīklas ir ātrs un pieejams vietējais
+  React komplekts; **Web Awesome** tiek izmantots tur, kur tas ir vislabākais
+  (dialogi, paziņojumi, progresa joslas) ar pielāgotu zīmola tēmu.
 - Pārzīmētas militāro figūru grafiskās zīmes un kaujas lauka vizuālais stils.
 - Latviešu valodā, bez reģistrācijas.
 
@@ -98,9 +100,9 @@ kontrolei, bet klienti saņem tikai savas puses rediģēto skatu.
 ## Testi
 
 ```bash
-npm test            # Vitest: 88 vienības/integrācijas testi (engines, AI, dati, multiplayer, formācijas)
+npm test            # Vitest: 97 vienības/integrācijas testi (engines, AI, dati, multiplayer, formācijas, saglabāšana)
 npx playwright install chromium
-npm run test:e2e    # Playwright: 38 E2E scenāriji (funkcionālie, a11y, vizuālās regresijas)
+npm run test:e2e    # Playwright: 58 E2E scenāriji (funkcionālie, ģeometrijas, a11y, vizuālās regresijas)
 npm run typecheck
 npm run lint
 ```
