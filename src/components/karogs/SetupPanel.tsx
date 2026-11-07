@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState, type SetStateAction } from "react";
-import { Check, Dices, FolderDown, Save, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Dices,
+  FolderDown,
+  Save,
+  Settings2,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   type Piece,
@@ -46,14 +54,16 @@ function entryRank(entry: (typeof ARMY)[number]): number | null {
   return entry.kind === "movable" ? (entry.rank as number) : null;
 }
 
+type Spec = { kind: Piece["kind"]; rank: number | null };
+
 export interface SetupController {
-  selected: { kind: Piece["kind"]; rank: number | null } | null;
-  setSelected: (s: SetStateAction<{ kind: Piece["kind"]; rank: number | null } | null>) => void;
+  selected: Spec | null;
+  setSelected: (s: SetStateAction<Spec | null>) => void;
   formationId: string | null;
   applyPreset: (id: string) => void;
   placedCounts: Map<string, number>;
   totalPlaced: number;
-  dragRef: React.MutableRefObject<{ kind: Piece["kind"]; rank: number | null } | null>;
+  dragRef: React.MutableRefObject<Spec | null>;
   handleCell: (idx: number) => void;
   handleDrop: (idx: number) => void;
   applyRandom: () => void;
@@ -64,12 +74,13 @@ export function useSetupController(
   side: Side,
   placement: Record<number, Piece>,
   onPlacementChange: (p: Record<number, Piece>) => void,
+  options: { initialFormationId?: string } = {},
 ): SetupController {
-  const [selected, setSelected] = useState<{ kind: Piece["kind"]; rank: number | null } | null>(
-    null,
+  const [selected, setSelected] = useState<Spec | null>(null);
+  const [formationId, setFormationId] = useState<string | null>(
+    options.initialFormationId ?? null,
   );
-  const [formationId, setFormationId] = useState<string | null>(null);
-  const dragRef = useRef<{ kind: Piece["kind"]; rank: number | null } | null>(null);
+  const dragRef = useRef<Spec | null>(null);
 
   const placedCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -89,29 +100,36 @@ export function useSetupController(
     return ids;
   }, [placement]);
 
-  const handleCell = (idx: number) => {
-    if (!selected) return;
+  const placeSpec = (idx: number, spec: Spec) => {
     if (!inZone(side, idx) || isLake(idx)) return;
     const existing = placement[idx];
-    if (existing && existing.kind === selected.kind && existing.rank === selected.rank) {
+    if (existing && existing.kind === spec.kind && existing.rank === spec.rank) {
       const next = { ...placement };
       delete next[idx];
       onPlacementChange(next);
       setFormationId(null);
       return;
     }
-    const prefix = `${side}-${selected.rank ?? selected.kind}`;
+    const prefix = `${side}-${spec.rank ?? spec.kind}`;
     const idIndex = (usedIds.get(prefix) ?? -1) + 1;
-    const piece = makePiece(side, selected.kind, selected.rank, idIndex);
+    const piece = makePiece(side, spec.kind, spec.rank, idIndex);
     onPlacementChange({ ...placement, [idx]: piece });
     setFormationId(null);
   };
 
+  const handleCell = (idx: number) => {
+    if (!selected) return;
+    placeSpec(idx, selected);
+  };
+
+  // The drop path uses the dragged piece directly — never the React
+  // selection state, which can be stale immediately after pointer-down.
   const handleDrop = (idx: number) => {
-    if (dragRef.current) {
-      setSelected(dragRef.current);
-      handleCell(idx);
-    }
+    const spec = dragRef.current;
+    dragRef.current = null;
+    if (!spec) return;
+    placeSpec(idx, spec);
+    setSelected(null);
   };
 
   return {
@@ -158,6 +176,8 @@ export function SetupPanel({
   readyLabel?: string;
 }) {
   const [formName, setFormName] = useState("");
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [formationsOpen, setFormationsOpen] = useState(false);
   const { selected, setSelected, placedCounts, totalPlaced } = controller;
 
   const saveFormation = () => {
@@ -178,7 +198,7 @@ export function SetupPanel({
 
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-sm font-bold">
           {side === "red" ? "Sarkanā armija" : "Zilā armija"}{" "}
           <span
@@ -190,133 +210,152 @@ export function SetupPanel({
             {totalPlaced}/{ARMY_SIZE}
           </span>
         </h3>
-        <span className="text-xs text-stone-400 dark:text-stone-500">
-          Izvēlies figūru, tad pieskaries lauciņam
-        </span>
+        <button
+          type="button"
+          onClick={() => setFormationsOpen((v) => !v)}
+          aria-expanded={formationsOpen}
+          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-stone-600 transition hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800"
+        >
+          {formationsOpen ? "Aizvērt formācijas" : "Izvēlēties formāciju"}
+          <ChevronDown
+            className={cn("size-3.5 transition-transform", formationsOpen && "rotate-180")}
+            aria-hidden
+          />
+        </button>
       </div>
-      <div
-        className="grid grid-cols-4 gap-1.5 sm:grid-cols-6"
-        role="group"
-        aria-label="Figūru krātuve"
-      >
-        {ARMY.map((entry) => {
-          const key = `${entry.kind}:${entry.rank}`;
-          const remaining = entry.count - (placedCounts.get(key) ?? 0);
-          const isSel = selected?.kind === entry.kind && selected?.rank === entry.rank;
-          return (
-            <button
-              key={key}
-              disabled={remaining <= 0}
-              draggable={remaining > 0}
-              onDragStart={(e) => {
-              controller.dragRef.current = { kind: entry.kind, rank: entryRank(entry) };
-                e.dataTransfer.setData("text/plain", key);
-                e.dataTransfer.effectAllowed = "copy";
-              }}
-              onPointerDown={() => {
-                if (remaining > 0) {
-                  controller.dragRef.current = { kind: entry.kind, rank: entryRank(entry) };
-                  setSelected({ kind: entry.kind, rank: entryRank(entry) });
-                }
-              }}
-              onClick={() =>
-                setSelected((s) =>
-                  s?.kind === entry.kind && s.rank === entryRank(entry)
-                    ? null
-                    : { kind: entry.kind, rank: entryRank(entry) },
-                )
-              }
-              aria-pressed={isSel}
-              className={cn(
-                "relative rounded-xl border p-2 text-center transition",
-                isSel
-                  ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400 dark:bg-indigo-950"
-                  : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
-                remaining <= 0 && "opacity-35",
-              )}
-            >
-              <div className="text-[11px] font-bold leading-tight">
-                {entry.kind === "flag" ? "Karogs" : entry.kind === "bomb" ? "Bumba" : entry.name}
-              </div>
-              <div className="text-[10px] text-stone-400">
-                {entry.kind === "movable" ? `Rangs ${entry.rank}` : "Nekustīgs"} · {remaining}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-4 border-t border-stone-200 pt-3 dark:border-stone-700">
+
+      {formationsOpen ? (
         <FormationPicker
           selectedId={controller.formationId}
           onApply={controller.applyPreset}
         />
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="secondary" onClick={controller.applyRandom}>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {onReady ? (
+          <Button className="min-w-40 flex-1" disabled={totalPlaced !== ARMY_SIZE || ready} onClick={onReady}>
+            {ready ? <Check className="size-4" aria-hidden /> : null}
+            {ready ? "Gatavs — gaida pretinieku" : readyLabel}
+          </Button>
+        ) : null}
+        <Button variant="secondary" size="md" onClick={controller.applyRandom}>
           <Dices className="size-4" aria-hidden />
           Izveidot nejauši
         </Button>
-        <Button size="sm" variant="ghost" onClick={controller.applyClear}>
-          <Trash2 className="size-4" aria-hidden />
-          Notīrīt
-        </Button>
-        <div className="ml-auto flex items-center gap-1.5">
-          <input
-            value={formName}
-            onChange={(e) => setFormName(e.target.value)}
-            placeholder="Formācijas nosaukums"
-            maxLength={20}
-            aria-label="Formācijas nosaukums"
-            className="h-9 w-36 rounded-lg border border-stone-300 bg-white px-2 text-xs dark:border-stone-600 dark:bg-stone-800"
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={totalPlaced !== ARMY_SIZE || !formName.trim()}
-            onClick={saveFormation}
-          >
-            <Save className="size-4" aria-hidden />
-            Saglabāt
-          </Button>
-        </div>
-      </div>
-      {(() => {
-        const formations = loadFormations();
-        if (formations.length === 0) return null;
-        return (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {formations.map((f) => (
-              <button
-                key={f.name}
-                onClick={() => {
-                  const next: Record<number, Piece> = {};
-                  const counters: Record<string, number> = {};
-                  for (const [cell, spec] of Object.entries(f.cells)) {
-                    const prefix = `${side}-${spec.rank ?? spec.kind}`;
-                    const n = counters[prefix] ?? 0;
-                    counters[prefix] = n + 1;
-                    next[Number(cell)] = makePiece(side, spec.kind, spec.rank, n);
-                  }
-                  onPlacementChange(next);
-                }}
-                className="inline-flex items-center gap-1 rounded-lg bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-600 transition hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300"
-              >
-                <FolderDown className="size-3.5" aria-hidden />
-                {f.name}
-              </button>
-            ))}
-          </div>
-        );
-      })()}
-      {onReady ? (
         <Button
-          className="mt-3 w-full"
-          disabled={totalPlaced !== ARMY_SIZE || ready}
-          onClick={onReady}
+          variant="outline"
+          size="md"
+          aria-expanded={customizeOpen}
+          onClick={() => setCustomizeOpen((v) => !v)}
         >
-          {ready ? <Check className="size-4" aria-hidden /> : null}
-          {ready ? "Gatavs — gaida pretinieku" : readyLabel}
+          <Settings2 className="size-4" aria-hidden />
+          Pielāgot izvietojumu
         </Button>
+      </div>
+
+      {customizeOpen ? (
+        <div className="mt-4 border-t border-stone-200 pt-4 dark:border-stone-700">
+          <div
+            className="grid grid-cols-4 gap-1.5 sm:grid-cols-6"
+            role="group"
+            aria-label="Figūru krātuve"
+          >
+            {ARMY.map((entry) => {
+              const key = `${entry.kind}:${entry.rank}`;
+              const remaining = entry.count - (placedCounts.get(key) ?? 0);
+              const isSel = selected?.kind === entry.kind && selected?.rank === entry.rank;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={remaining <= 0}
+                  onPointerDown={() => {
+                    if (remaining > 0) {
+                      controller.dragRef.current = { kind: entry.kind, rank: entryRank(entry) };
+                      setSelected({ kind: entry.kind, rank: entryRank(entry) });
+                    }
+                  }}
+                  onClick={() =>
+                    setSelected((s) =>
+                      s?.kind === entry.kind && s.rank === entryRank(entry)
+                        ? null
+                        : { kind: entry.kind, rank: entryRank(entry) },
+                    )
+                  }
+                  aria-pressed={isSel}
+                  className={cn(
+                    "relative rounded-xl border p-2 text-center transition",
+                    isSel
+                      ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-400 dark:bg-indigo-950"
+                      : "border-stone-200 hover:border-stone-300 dark:border-stone-700 dark:hover:border-stone-600",
+                    remaining <= 0 && "opacity-35",
+                  )}
+                >
+                  <div className="text-[11px] font-bold leading-tight">
+                    {entry.kind === "flag" ? "Karogs" : entry.kind === "bomb" ? "Bumba" : entry.name}
+                  </div>
+                  <div className="text-[10px] text-stone-400">
+                    {entry.kind === "movable" ? `Rangs ${entry.rank}` : "Nekustīgs"} · {remaining}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={controller.applyClear}>
+              <Trash2 className="size-4" aria-hidden />
+              Notīrīt
+            </Button>
+            <div className="ml-auto flex items-center gap-1.5">
+              <input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Formācijas nosaukums"
+                maxLength={20}
+                aria-label="Formācijas nosaukums"
+                className="h-9 w-36 rounded-lg border border-stone-300 bg-white px-2 text-xs dark:border-stone-600 dark:bg-stone-800"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={totalPlaced !== ARMY_SIZE || !formName.trim()}
+                onClick={saveFormation}
+              >
+                <Save className="size-4" aria-hidden />
+                Saglabāt
+              </Button>
+            </div>
+          </div>
+          {(() => {
+            const formations = loadFormations();
+            if (formations.length === 0) return null;
+            return (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {formations.map((f) => (
+                  <button
+                    key={f.name}
+                    type="button"
+                    onClick={() => {
+                      const next: Record<number, Piece> = {};
+                      const counters: Record<string, number> = {};
+                      for (const [cell, spec] of Object.entries(f.cells)) {
+                        const prefix = `${side}-${spec.rank ?? spec.kind}`;
+                        const n = counters[prefix] ?? 0;
+                        counters[prefix] = n + 1;
+                        next[Number(cell)] = makePiece(side, spec.kind, spec.rank, n);
+                      }
+                      onPlacementChange(next);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-stone-100 px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300"
+                  >
+                    <FolderDown className="size-3.5" aria-hidden />
+                    {f.name}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
       ) : null}
     </div>
   );

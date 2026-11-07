@@ -31,15 +31,15 @@ export const LingoBoard = memo(function LingoBoard({
     <div
       role="group"
       aria-label="Spēles laukums"
-      className="mx-auto w-full max-w-xs sm:max-w-sm"
+      className="mx-auto w-full max-w-[320px] sm:max-w-[360px]"
     >
-      <div role="grid" className="grid grid-rows-5 gap-1.5 sm:gap-2">
+      <div role="grid" className="grid grid-rows-5 gap-2">
         {rows.map((row, r) => (
           <div
             key={r}
             role="row"
             className={cn(
-              "grid grid-cols-5 gap-1.5 sm:gap-2",
+              "grid grid-cols-5 gap-2",
               row.shake && "animate-[shake_0.45s_ease-in-out]",
             )}
           >
@@ -55,10 +55,10 @@ export const LingoBoard = memo(function LingoBoard({
                       : "Tukšs lauciņš"
                   }
                   className={cn(
-                    "grid aspect-square place-items-center rounded-lg border-2 text-2xl font-black uppercase transition-all sm:text-3xl",
+                    "grid aspect-square place-items-center rounded-xl border-2 text-3xl font-black uppercase transition-all",
                     cell.state === "done" && "animate-[flip_0.5s_ease-in-out]",
                     cell.state === "typed" &&
-                      "border-stone-400 dark:border-stone-500",
+                      "border-stone-400 bg-white dark:border-stone-400 dark:bg-stone-800",
                     cell.state === "hint" &&
                       "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950 dark:text-indigo-200",
                     cell.status === "empty" &&

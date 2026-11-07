@@ -22,11 +22,12 @@ import {
   startGame,
 } from "@/lib/karogs/engine";
 import { summarizeFinished } from "@/lib/karogs/summary";
+import { applyFormation, formationById } from "@/lib/karogs/formations";
 import { playSound } from "@/lib/sound";
 import { useToast } from "@/lib/toast";
 import { recordKarogsGame } from "@/lib/store/karogsStats";
 import { recordGameEvent } from "@/lib/store/achievements";
-import { storageGet, storageSet } from "@/lib/store/storage";
+import { storageGet, storageRemove, storageSet } from "@/lib/store/storage";
 
 type LocalPhase = "setup-red" | "setup-blue" | "playing" | "finished";
 
@@ -41,15 +42,25 @@ export function LocalGame() {
   const [phase, setPhase] = useState<LocalPhase>("setup-red");
   const [viewer, setViewer] = useState<Side>("red");
   const [curtain, setCurtain] = useState<Curtain | null>(null);
-  const [redPlacement, setRedPlacement] = useState<Record<number, Piece>>({});
-  const [bluePlacement, setBluePlacement] = useState<Record<number, Piece>>({});
+  const [redPlacement, setRedPlacement] = useState<Record<number, Piece>>(() => {
+    const formation = formationById("balanced");
+    return formation ? applyFormation(formation, "red", Math.random) : {};
+  });
+  const [bluePlacement, setBluePlacement] = useState<Record<number, Piece>>(() => {
+    const formation = formationById("balanced");
+    return formation ? applyFormation(formation, "blue", Math.random) : {};
+  });
   const [reveal, setReveal] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [recorded, setRecorded] = useState(false);
   const { push } = useToast();
 
-  const redCtrl = useSetupController("red", redPlacement, setRedPlacement);
-  const blueCtrl = useSetupController("blue", bluePlacement, setBluePlacement);
+  const redCtrl = useSetupController("red", redPlacement, setRedPlacement, {
+    initialFormationId: "balanced",
+  });
+  const blueCtrl = useSetupController("blue", bluePlacement, setBluePlacement, {
+    initialFormationId: "balanced",
+  });
 
   useEffect(() => {
     const stored = storageGet<{
@@ -160,6 +171,22 @@ export function LocalGame() {
     }
   };
 
+  const newGame = () => {
+    storageRemove("karogsLocalGame");
+    setState(createGame());
+    setPhase("setup-red");
+    setRedPlacement(
+      applyFormation(formationById("balanced")!, "red", Math.random),
+    );
+    setBluePlacement(
+      applyFormation(formationById("balanced")!, "blue", Math.random),
+    );
+    setRecorded(false);
+    setReveal(false);
+    setCurtain(null);
+    setViewer("red");
+  };
+
   const boardCells = useMemo(() => {
     if (!state) return emptyBoard();
     if (phase === "setup-red") {
@@ -264,12 +291,19 @@ export function LocalGame() {
       ) : null}
 
       {phase === "finished" && state ? (
-        <ResultPanel
-          state={state}
-          viewer={viewer}
-          reveal={reveal}
-          setReveal={setReveal}
-        />
+        <>
+          <ResultPanel
+            state={state}
+            viewer={viewer}
+            reveal={reveal}
+            setReveal={setReveal}
+          />
+          <div className="flex justify-center">
+            <Button variant="secondary" onClick={newGame}>
+              Jauna spēle
+            </Button>
+          </div>
+        </>
       ) : null}
 
       {curtain ? (

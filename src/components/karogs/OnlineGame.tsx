@@ -22,6 +22,7 @@ import {
   emptyBoard,
   legalMovesForCells,
 } from "@/lib/karogs/engine";
+import { applyFormation, formationById } from "@/lib/karogs/formations";
 import {
   type PlayerActionType,
   type StateView,
@@ -51,7 +52,11 @@ export function OnlineGame({ initialCode }: { initialCode?: string }) {
   const [view, setView] = useState<StateView | null>(null);
   const [nickname, setNickname] = useState("");
   const [codeInput, setCodeInput] = useState(initialCode ?? "");
-  const [placement, setPlacement] = useState<Record<number, Piece>>({});
+  const [placement, setPlacement] = useState<Record<number, Piece>>(() => {
+    const formation = formationById("balanced");
+    return formation ? applyFormation(formation, "red", Math.random) : {};
+  });
+  const [onlineDisabled, setOnlineDisabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(false);
@@ -121,13 +126,26 @@ export function OnlineGame({ initialCode }: { initialCode?: string }) {
   }, [session?.gameId, view?.status]);
 
   useEffect(() => {
-    if (view?.status === "setup" && view.yourSetup) {
+    if (
+      view?.status === "setup" &&
+      view.yourSetup &&
+      Object.keys(view.yourSetup).length > 0
+    ) {
       setPlacement(view.yourSetup);
     }
   }, [view?.status, view?.yourSetup]);
 
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((h) => setOnlineDisabled(h?.multiplayer?.mode !== "supabase"))
+      .catch(() => undefined);
+  }, []);
+
   const mySide = view?.yourSide ?? session?.side ?? null;
-  const controller = useSetupController(mySide ?? "red", placement, setPlacement);
+  const controller = useSetupController(mySide ?? "red", placement, setPlacement, {
+    initialFormationId: "balanced",
+  });
 
   const act = useCallback(
     async (
@@ -329,6 +347,18 @@ export function OnlineGame({ initialCode }: { initialCode?: string }) {
       : "";
 
   if (!session) {
+    if (onlineDisabled) {
+      return (
+        <Card className="mx-auto max-w-md p-6 text-center">
+          <Globe className="mx-auto size-7 text-stone-400" aria-hidden />
+          <p className="mt-3 font-bold">Tiešsaistes spēle pagaidām nav pieejama</p>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+            Spēle ar draugu prasa tiešsaistes serveri, kas šobrīd nav ieslēgts.
+            Izmēģini <b>Pret datoru</b> vai <b>Divatā uz viena ekrāna</b>.
+          </p>
+        </Card>
+      );
+    }
     return (
       <div className="mx-auto max-w-md space-y-4">
         <Card className="p-5">

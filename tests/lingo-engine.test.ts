@@ -125,7 +125,7 @@ describe("round lifecycle", () => {
   });
 
   it("rejects a duplicate word without consuming an attempt", () => {
-    let round = submitGuess(start(), "asara", DICT);
+    const round = submitGuess(start(), "asara", DICT);
     expect(() => submitGuess(round, "asara", DICT)).toThrowError(LingoError);
     try {
       submitGuess(round, "asara", DICT);
