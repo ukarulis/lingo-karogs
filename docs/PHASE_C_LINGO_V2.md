@@ -3,8 +3,7 @@
 ## 1. Sākuma un gala komiti
 
 - Sākums: `2b9d418` (B fāzes noslēgums).
-- Gala komits: sk. repozitoriju (ieviešana `45d9cbb` + `7be6cd4` + gala
-  dokumentācijas komits).
+- Gala komits: `4de862d` (ieviešana `45d9cbb` + `7be6cd4`).
 
 ## 2. Arhitektūras lēmumi
 
@@ -145,6 +144,11 @@ tāpēc izvietotajā vietnē "Spēlēt ar draugu" godīgi rāda
 "Tiešsaistes spēle pašlaik nav pieejama", un API atbild ar 503. C fāzes
 ražošanas pieņemšanas kritērijs (divas īstas ierīces pret ražošanu) vēl
 nav izpildīts — to nevar izpildīt bez akreditācijām.
+
+Izvietojums `dpl_5Di998wMjmnYtzD89rXDMz9oXmxk` ir READY ražošanā;
+`/api/lingo-mp/status` atbild `{"available":false}`, un "Spēlēt ar draugu"
+cilne rāda godīgu nepieejamības ziņojumu. Solo spēles un Karogs ražošanā
+pārbaudīti (smoke 9/9, pārbaudes 5/5).
 
 ## 14. Zināmie ierobežojumi
 
