@@ -99,6 +99,11 @@ ne-pieejamības ziņojumu; solo spēles un Karogs darbojas.
 
 ## 17.–19. Gala komits, izvietojums, nākamā fāze
 
-Aizpildīts izvietošanas brīdī. Ieteicamā nākamā fāze: pēc datubāzes
-autorizācijas — PostgreSQL integrācijas testi un ražošanas tiešsaistes
-akceptance; pēc tam D fāze (vērtējumi un publiska piemeklēšana).
+Gala komits: `d7dd746` · Vercel izvietojums `dpl_3up9vcct298Yr6pijDM5tuXDQJVs`
+(READY, https://lingo-karogs.vercel.app). Ražošanas pārbaudes: smoke 9/9,
+verifikācija 5/5, 12/12 mērķtiecīgie pārbaudes scenāriji (tastatūra, AltGr,
+īsceļi, godīgs tiešsaistes stāvoklis, aizsargāta diagnostika).
+
+Ieteicamā nākamā fāze: pēc datubāzes autorizācijas — PostgreSQL integrācijas
+testi un ražošanas tiešsaistes akceptance; pēc tam D fāze (vērtējumi un
+publiska piemeklēšana).
